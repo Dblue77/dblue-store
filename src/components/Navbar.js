@@ -14,10 +14,7 @@ function Navbar() {
             className="me-1 rounded-circle"
           />
           <span className="fw-bold text-primary">Dblue Store</span>
-        </a>
-        <div className ="container d-flex flex-column align-items-start">
-          <span className ="text-secondary small d-flex mt-1 fw-bold ">Jual Apk premium, suntik all sosmed, pulsa, e-wallet </span>
-        </div>
+        </a>  
       </div>
     </nav>
   );
