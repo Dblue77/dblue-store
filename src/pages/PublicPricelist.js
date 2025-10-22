@@ -20,7 +20,7 @@ export default function PublicPricelist() {
     const { data: fetchedData, error } = await supabase
       .from("pricelist")
       .select("*")
-      .eq("sold_out", false) // hanya tampilkan produk aktif
+      .eq("sold_out", false) 
       .order("id", { ascending: true })
       .limit(500);
 
@@ -42,7 +42,6 @@ export default function PublicPricelist() {
     }
   };
 
-  // Filter data berdasarkan kategori dan search
   const filteredData = data.filter(
     (item) =>
       item.category === category &&

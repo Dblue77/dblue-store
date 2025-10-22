@@ -11,3 +11,34 @@ code {
   font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
     monospace;
 }
+
+/* Frame foto 9:16 yang konsisten dan responsif */
+.poster-9x16 {
+  aspect-ratio: 9 / 16;   /* kunci ukuran mirip poster */
+  width: 100%;
+  border-radius: 12px;
+  overflow: hidden;
+  background: #000;       /* back-up color saat loading */
+}
+
+.poster-9x16__img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;      /* isi penuh, crop rapi */
+  object-position: center;
+  display: block;
+}
+
+/* Placeholder jika tak ada foto */
+.poster-9x16__placeholder {
+  display: grid;
+  place-items: center;
+  background: #f1f3f5;
+  color: #6c757d;
+  border: 1px dashed #cbd3da;
+}
+
+/* Sedikit pemanis pada kartu */
+.card {
+  border-radius: 14px;
+}

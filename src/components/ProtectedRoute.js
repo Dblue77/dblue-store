@@ -20,7 +20,6 @@ export default function ProtectedRoute({ children }) {
         return;
       }
 
-      // check admins table
       const { data, error } = await supabase
         .from("admins")
         .select("id")

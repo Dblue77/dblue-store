@@ -9,14 +9,23 @@ import Header from "./components/Header";
 import CategoryBar from "./components/CategoryBar";
 import PriceCard from "./components/PriceCard";
 import Footer from "./components/Footer";
-import { supabase } from "./supabaseClient"; // untuk CRUD
+import { supabase } from "./supabaseClient";
 
-// Komponen admin
+// Halaman publik tambahan
+import Testimonials from "./pages/Testimonials";       // ✅ list testimoni publik
+import OrderGuide from "./pages/OrderGuide";
+import ProductDetail from "./pages/ProductDetail";     // ✅ detail produk + testimoni terkait
+
+// Halaman admin
+import AdminTestimonials from "./pages/AdminTestimonials"; // ✅ CRUD testimoni (admin)
 import AdminLogin from "./pages/AdminLogin";
 import AdminDashboard from "./pages/AdminDashboard";
 import ProtectedRoute from "./components/ProtectedRoute";
-import EditProductPage from "./pages/EditProductPage"; // ✅ ditambahkan
+import EditProductPage from "./pages/EditProductPage";
 
+// ============================
+// ✅ Halaman Publik (Pricelist)
+// ============================
 function PublicPricelist() {
   const [category, setCategory] = useState("premium");
   const [search, setSearch] = useState("");
@@ -83,15 +92,47 @@ function PublicPricelist() {
   );
 }
 
-// Routing utama aplikasi
+// ============================
+// ✅ Routing Utama Aplikasi
+// ============================
 function App() {
   return (
     <Routes>
-      {/* Halaman Publik */}
+      {/* 🏠 Halaman Publik */}
       <Route path="/" element={<PublicPricelist />} />
 
-      {/* Admin */}
+      {/* ⭐ Testimoni Publik */}
+      <Route path="/testimonials" element={<Testimonials />} />
+
+      {/* 🧾 Cara Pemesanan */}
+      <Route path="/order-guide" element={<OrderGuide />} />
+
+      {/* 🛒 Detail Produk (dengan testimoni terkait) */}
+      <Route path="/products/:id" element={<ProductDetail />} />  {/* ✅ NEW */}
+
+      {/* 🧑‍💻 Admin Testimoni (CRUD) */}
+      <Route
+        path="/admin-testimonials"
+        element={
+          <ProtectedRoute>
+            <AdminTestimonials />
+          </ProtectedRoute>
+        }
+      />
+      {/* alias opsional: /admin/testimonials → sama ke AdminTestimonials */}
+      <Route
+        path="/admin/testimonials"
+        element={
+          <ProtectedRoute>
+            <AdminTestimonials />
+          </ProtectedRoute>
+        }
+      />
+
+      {/* 🔑 Login Admin */}
       <Route path="/admin/login" element={<AdminLogin />} />
+
+      {/* 📊 Dashboard Admin */}
       <Route
         path="/admin"
         element={
@@ -101,10 +142,10 @@ function App() {
         }
       />
 
-      {/* ✅ Halaman Edit Produk */}
+      {/* ✏️ Halaman Edit Produk */}
       <Route path="/edit/:id" element={<EditProductPage />} />
 
-      {/* Redirect jika path tidak dikenal */}
+      {/* 🚫 Redirect jika path tidak dikenal */}
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );

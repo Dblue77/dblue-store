@@ -1,6 +1,5 @@
 const data = {
         sosmed: [
-          // 📸 INSTAGRAM
           {
             icon: "📸",
             name: "Instagram Followers",
@@ -27,11 +26,11 @@ const data = {
             icon: "📸",
             name: "Instagram Followers Indonesia",
             price: [
-              "100 — Rp 10.000",
-              "200 — Rp 20.000",
-              "300 — Rp 30.000",
-              "500 — Rp 50.000",
-              "1.000 — Rp 98.000",
+                      "100 — Rp 10.000",
+                      "200 — Rp 20.000",
+                      "300 — Rp 30.000",
+                      "500 — Rp 50.000",
+                      "1.000 — Rp 98.000",
             ],
           },
           {

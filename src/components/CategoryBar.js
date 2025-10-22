@@ -2,10 +2,10 @@ import React from "react";
 import { motion } from "framer-motion";
 
 const categories = [
-  { key: "premium", label: "🌟 APP Premium" },
-  { key: "sosmed", label: "📱 Sosial Media" },
-  { key: "pulsa", label: "🎫 Pulsa" },
-  { key: "ewallet", label: "💳 E-Wallet" },
+  { key: "premium", label: "APP Premium" },
+  { key: "sosmed", label: "Sosial Media" },
+  { key: "pulsa", label: "Pulsa" },
+  { key: "ewallet", label: "E-Wallet" },
 ];
 
 function CategoryBar({ category, setCategory }) {
@@ -23,7 +23,7 @@ function CategoryBar({ category, setCategory }) {
           whileTap={{ scale: 0.95 }}
           className={`btn ${
             category === cat.key ? "btn-primary" : "btn-outline-primary"
-          } rounded-pill px-3 fw-semibold flex-shrink-0`}
+          } rounded-pill px-3 fw-semibold flex-shrink-0 text-capitalize`}
           onClick={() => setCategory(cat.key)}
         >
           {cat.label}
