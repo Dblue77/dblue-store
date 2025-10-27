@@ -5,9 +5,16 @@ import { supabase } from "../supabaseClient";
 export default function ProductDetail() {
   const { id } = useParams();
   const [product, setProduct] = useState(null);
-  const [testi, setTesti] = useState([]);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState("");
+
+  // === Accent (biru langit)
+  const ACCENT = {
+    base: "#48A7FF",
+    dark: "#1E8BFF",
+    light: "#EAF4FF",
+    border: "#CFE6FF",
+  };
 
   const fmtIDR = useMemo(
     () =>
@@ -21,28 +28,18 @@ export default function ProductDetail() {
 
   useEffect(() => {
     let isMounted = true;
-
     (async () => {
       try {
         setLoading(true);
         setErr("");
 
-        const [{ data: prod, error: e1 }, { data: t, error: e2 }] = await Promise.all([
+        const [{ data: prod, error: e1 }] = await Promise.all([
           supabase.from("pricelist").select("*").eq("id", id).single(),
-          supabase
-            .from("testimonials")
-            .select("*")
-            .eq("product_id", id)
-            .order("created_at", { ascending: false }),
         ]);
-
-        if (e1 || e2) {
-          throw new Error(e1?.message || e2?.message || "Gagal memuat data");
-        }
+        if (e1) throw new Error(e1.message);
 
         if (isMounted) {
           setProduct(prod || null);
-          setTesti(Array.isArray(t) ? t : []);
           if (prod?.name) document.title = `${prod.name} · Detail Produk`;
         }
       } catch (e) {
@@ -51,233 +48,279 @@ export default function ProductDetail() {
         if (isMounted) setLoading(false);
       }
     })();
-
     return () => {
       isMounted = false;
     };
   }, [id]);
 
-  const Skeleton = () => (
-    <div className="container py-4">
-      <div className="placeholder-glow mb-3">
-        <span className="placeholder col-3"></span>
-      </div>
-      <div className="row g-4">
-        <div className="col-lg-5">
-          <div className="card shadow-sm">
-            <div className="card-body">
-              <h4 className="placeholder-glow">
-                <span className="placeholder col-8"></span>
-              </h4>
-              <div className="placeholder-glow">
-                <span className="placeholder col-4"></span>
-              </div>
-              <div className="mt-3 d-grid gap-2">
-                <span className="placeholder col-6"></span>
-                <span className="placeholder col-5"></span>
-                <span className="placeholder col-4"></span>
-              </div>
-              <p className="placeholder-glow mt-3 mb-0">
-                <span className="placeholder col-12"></span>
-                <span className="placeholder col-10"></span>
-                <span className="placeholder col-8"></span>
-              </p>
-            </div>
-          </div>
-        </div>
-
-        <div className="col-lg-7">
-          <div className="d-flex justify-content-between align-items-center mb-2">
-            <h5 className="mb-0">Testimoni Produk Ini</h5>
-          </div>
-          <div className="row g-3">
-            {[...Array(4)].map((_, i) => (
-              <div className="col-md-6" key={i}>
-                <div className="card h-100 shadow-sm">
-                  <div
-                    className="card-img-top placeholder"
-                    style={{ height: 160 }}
-                  />
-                  <div className="card-body">
-                    <h6 className="placeholder-glow">
-                      <span className="placeholder col-6"></span>
-                    </h6>
-                    <small className="text-muted placeholder col-4 d-inline-block"></small>
-                    <p className="small mt-2 mb-0 placeholder-glow">
-                      <span className="placeholder col-12"></span>
-                      <span className="placeholder col-10"></span>
-                    </p>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-    </div>
+  // --- UI helpers
+  const HeaderBack = () => (
+    <Link
+      to="/"
+      className="text-decoration-none"
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        gap: 10,
+        background: ACCENT.light,
+        border: `1px solid ${ACCENT.border}`,
+        color: "#0F172A",
+        padding: "8px 14px",
+        borderRadius: 999,
+        fontWeight: 500,
+        transition: "all .2s ease",
+      }}
+      onMouseEnter={(e) => (e.currentTarget.style.background = "#F4F9FF")}
+      onMouseLeave={(e) => (e.currentTarget.style.background = ACCENT.light)}
+    >
+      <span style={{ fontSize: 18, lineHeight: 1 }}>←</span>
+      <span>Kembali</span>
+    </Link>
   );
 
-  if (loading) return <Skeleton />;
-
-  if (err)
-    return (
-      <div className="container py-5">
-        <div className="alert alert-danger d-flex align-items-start" role="alert">
-          <span className="me-2">⚠️</span>
-          <div>
-            <strong>Gagal memuat.</strong>
-            <div className="small">{err}</div>
-          </div>
-        </div>
-        <Link to="/" className="btn btn-outline-secondary">← Kembali</Link>
-      </div>
-    );
-
-  if (!product)
-    return (
-      <div className="container py-5">
-        <div className="alert alert-warning" role="alert">
-          Produk tidak ditemukan.
-        </div>
-        <Link to="/" className="btn btn-outline-secondary">← Kembali</Link>
-      </div>
-    );
-
   const renderPrice = () => {
+    if (!product) return null;
     if (Array.isArray(product.price)) {
       return (
-        <ul className="small mb-0">
+        <ul className="list-unstyled mb-0" style={{ lineHeight: 1.6 }}>
           {product.price.map((p, i) => (
-            <li key={i}>🔹 {typeof p === "number" ? fmtIDR.format(p) : p}</li>
+            <li key={i}>• {typeof p === "number" ? fmtIDR.format(p) : p}</li>
           ))}
         </ul>
       );
     }
     return (
-      <div className="fw-semibold">
-        {typeof product.price === "number" ? fmtIDR.format(product.price) : product.price}
+      <div className="fw-semibold fs-4">
+        {typeof product.price === "number"
+          ? fmtIDR.format(product.price)
+          : product.price}
       </div>
     );
   };
 
+  const renderTnC = () => {
+    const raw = (product?.tnc || "").trim();
+    if (!raw) return null;
+    const lines = raw
+      .split(/\r?\n/)
+      .map((s) => s.trim())
+      .filter(Boolean);
+    const hasTitle = lines.length > 0 && /^[A-Za-z0-9]/.test(lines[0]);
+    const title = hasTitle ? lines[0] : "Syarat & Ketentuan";
+    const points = hasTitle ? lines.slice(1) : lines;
+
+    return (
+      <section className="mt-5">
+        <div
+          className="rounded-4"
+          style={{
+            border: `1px solid ${ACCENT.border}`,
+            background: "#fff",
+          }}
+        >
+          <div
+            className="px-4 py-3 rounded-top-4"
+            style={{
+              background: ACCENT.light,
+              borderBottom: `1px solid ${ACCENT.border}`,
+            }}
+          >
+            <h5 className="mb-0" style={{ color: "#0F172A" }}>
+              {title}
+            </h5>
+          </div>
+          <div className="px-4 py-4">
+            <ul className="mb-0 small" style={{ paddingLeft: 18 }}>
+              {points.map((line, i) => (
+                <li key={i} className="mb-2" style={{ whiteSpace: "pre-wrap" }}>
+                  {line}
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      </section>
+    );
+  };
+
+  if (loading)
+    return (
+      <div className="min-vh-100 d-flex align-items-center justify-content-center text-muted">
+        Memuat…
+      </div>
+    );
+
+  if (err)
+    return (
+      <div className="container py-5 text-center">
+        <div className="alert alert-danger d-inline-block">{err}</div>
+        <div className="mt-3">
+          <HeaderBack />
+        </div>
+      </div>
+    );
+
+  if (!product)
+    return (
+      <div className="container py-5 text-center">
+        <div className="alert alert-warning d-inline-block">
+          Produk tidak ditemukan.
+        </div>
+        <div className="mt-3">
+          <HeaderBack />
+        </div>
+      </div>
+    );
+
   return (
-    <div className="container py-4">
-      <div className="d-flex align-items-center justify-content-between mb-3">
-        <Link to="/" className="btn btn-link px-0">← Kembali</Link>
+    <div className="container py-5" style={{ maxWidth: 1100 }}>
+      {/* Header */}
+      <div className="d-flex align-items-center justify-content-between mb-4">
+        <HeaderBack />
         {product.category && (
-          <span className="badge text-bg-light border">
+          <span
+            className="badge rounded-pill"
+            style={{
+              background: ACCENT.light,
+              color: "#0F172A",
+              border: `1px solid ${ACCENT.border}`,
+              padding: "10px 14px",
+              fontWeight: 600,
+              letterSpacing: 0.2,
+            }}
+          >
             {product.category}
           </span>
         )}
       </div>
 
-      <div className="row g-4 align-items-stretch">
-        {/* Kolom detail */}
+      {/* Main: kiri (produk) | kanan (cara pesan + tombol) */}
+      <div className="row g-4">
+        {/* Kiri: detail produk */}
+        <div className="col-12 col-lg-7">
+          <section
+            className="rounded-4 p-4"
+            style={{
+              background: "#fff",
+              border: "1px solid #EEF2F7",
+            }}
+          >
+            {product.photo_url && (
+              <div className="mb-3 text-center">
+                <img
+                  src={product.photo_url}
+                  alt={product.name}
+                  loading="lazy"
+                  style={{
+                    width: 180, // ukuran fix (bisa ubah jadi 128/256)
+                    height: 180,
+                    objectFit: "cover",
+                    borderRadius: 24, // sedikit rounded biar lembut
+                    border: "1px solid #EEF2F7",
+                    background: "#F6FAFF",
+                    display: "inline-block",
+                    boxShadow: "0 4px 16px rgba(0,0,0,0.08)",
+                  }}
+                />
+              </div>
+            )}
+
+            <h2 className="mb-1" style={{ color: "#0F172A" }}>
+              {product.name}
+            </h2>
+            {product.sku && (
+              <small className="text-muted d-block mb-3">
+                SKU: {product.sku}
+              </small>
+            )}
+
+            {/* Harga */}
+            <div className="mb-3">{renderPrice()}</div>
+
+            {/* Deskripsi */}
+            {product.description && (
+              <p
+                className="text-secondary mb-0"
+                style={{ whiteSpace: "pre-line", lineHeight: 1.7 }}
+              >
+                {product.description}
+              </p>
+            )}
+          </section>
+        </div>
+
+        {/* Kanan: cara pesan + tombol (sticky) */}
         <div className="col-12 col-lg-5">
-          <div className="card shadow-sm h-100">
-            <div className="card-body">
-              <h4 className="mb-1 text-truncate" title={product.name}>
-                {product.name}
-              </h4>
-              {product.sku && (
-                <small className="text-muted d-block">SKU: {product.sku}</small>
-              )}
+          <aside
+            className="rounded-4 p-4"
+            style={{
+              position: "sticky",
+              top: 24,
+              background: "#fff",
+              border: `1px solid ${ACCENT.border}`,
+            }}
+          >
+            <h5 className="mb-3" style={{ color: "#0F172A" }}>
+              Cara Pesan
+            </h5>
+            <ol className="small mb-4 ps-3" style={{ lineHeight: 1.7 }}>
+              <li>Pilih paket/opsi harga yang diinginkan.</li>
+              <li>Tekan tombol “Pesan via WhatsApp”.</li>
+              <li>Isi format pesanan sesuai instruksi.</li>
+              <li>Lakukan pembayaran sesuai nominal.</li>
+              <li>Pesanan akan diproses otomatis/manual.</li>
+            </ol>
 
-              <div className="mt-3">{renderPrice()}</div>
+            <div className="d-grid gap-2">
+              <a
+                className="btn rounded-3 py-2"
+                href={
+                  product?.whatsapp_link ||
+                  `https://wa.me/6289515939531?text=${encodeURIComponent(
+                    `Halo, Saya ingin order ${product.name}`
+                  )}`
+                }
+                target="_blank"
+                rel="noreferrer"
+                style={{
+                  background: ACCENT.base,
+                  border: `1px solid ${ACCENT.dark}`,
+                  color: "#fff",
+                  fontWeight: 600,
+                  letterSpacing: 0.2,
+                }}
+              >
+                Pesan via WhatsApp
+              </a>
 
-              {product.description && (
-                <p className="small text-muted mt-3 mb-0" style={{ whiteSpace: "pre-line" }}>
-                  {product.description}
-                </p>
-              )}
-
-              {/* CTA optional */}
-              <div className="mt-3 d-flex gap-2 flex-wrap">
+              {product?.cta_link && (
                 <a
-                  className="btn btn-primary"
-                  href={product?.whatsapp_link || `https://wa.me/6289515939531?text=${encodeURIComponent(`Halo, Saya ingin order ${product.name}`)}`}
+                  className="btn btn-light rounded-3 py-2"
+                  href={product.cta_link}
                   target="_blank"
                   rel="noreferrer"
+                  style={{
+                    background: "#fff",
+                    border: `1px solid ${ACCENT.border}`,
+                    color: "#0F172A",
+                    fontWeight: 600,
+                  }}
                 >
-                  Pesan via WhatsApp
+                  Kunjungi Link
                 </a>
-                {product?.cta_link && (
-                  <a className="btn btn-outline-secondary" href={product.cta_link} target="_blank" rel="noreferrer">
-                    Kunjungi Link
-                  </a>
-                )}
-              </div>
+              )}
             </div>
-          </div>
-        </div>
 
-        {/* Kolom testimoni */}
-        <div className="col-12 col-lg-7">
-          <div className="d-flex justify-content-between align-items-center mb-2">
-            <h5 className="mb-0">Testimoni Produk Ini</h5>
-            {testi.length > 0 && (
-              <span className="badge text-bg-secondary">{testi.length}</span>
-            )}
-          </div>
-
-          {testi.length === 0 ? (
-            <div className="alert alert-light border small mb-0">
-              Belum ada testimoni. Jadilah yang pertama memberikan ulasan!
+            {/* Info kecil */}
+            <div className="mt-3 small text-muted">
+              * Respon cepat pada jam kerja. Harga dapat berubah sewaktu-waktu.
             </div>
-          ) : (
-            <div className="row g-3">
-              {testi.map((t) => (
-                <div className="col-12 col-sm-6" key={t.id}>
-                  <div className="card h-100 shadow-sm">
-                    {t.photo_url ? (
-                      <img
-                        src={t.photo_url}
-                        alt={t.name || "Foto testimoni"}
-                        className="card-img-top"
-                        style={{ height: 180, objectFit: "cover" }}
-                        loading="lazy"
-                      />
-                    ) : (
-                      <div
-                        className="card-img-top bg-light d-flex align-items-center justify-content-center"
-                        style={{ height: 180 }}
-                      >
-                        <span className="text-muted small">Tidak ada foto</span>
-                      </div>
-                    )}
-                    <div className="card-body d-flex flex-column">
-                      <div className="d-flex justify-content-between align-items-start">
-                        <h6 className="mb-1 text-truncate" title={t.name}>
-                          {t.name || "Pengguna"}
-                        </h6>
-                        {t.rating && (
-                          <span className="badge text-bg-success">
-                            ⭐ {t.rating}
-                          </span>
-                        )}
-                      </div>
-                      <small className="text-muted">
-                        {t.created_at
-                          ? new Date(t.created_at).toLocaleDateString("id-ID", {
-                              day: "2-digit",
-                              month: "short",
-                              year: "numeric",
-                            })
-                          : ""}
-                      </small>
-                      {t.message && (
-                        <p className="small mt-2 mb-0" style={{ whiteSpace: "pre-line" }}>
-                          {t.message}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
+          </aside>
         </div>
       </div>
+
+      {/* S&K PALING BAWAH */}
+      {renderTnC()}
     </div>
   );
 }

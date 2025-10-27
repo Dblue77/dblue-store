@@ -1,13 +1,20 @@
 import React from "react";
 import { motion } from "framer-motion";
-import { Link } from "react-router-dom"; // ✅ tambahkan ini
+import { Link } from "react-router-dom";
 
 function PriceCard({ item }) {
+  // pisahkan list harga
   const priceList = Array.isArray(item.price)
     ? item.price
-    : (item.price ? item.price.split("\n") : []);
+    : item.price
+    ? item.price.split("\n")
+    : [];
 
   const hasDetail = typeof item?.id !== "undefined" && item.id !== null;
+
+  // ambil foto / logo dari database (fallback ke default)
+  const imageSrc =
+    item.photo_url || item.logo || "/default-logo.png"; // ubah default sesuai kebutuhan
 
   return (
     <motion.div
@@ -22,9 +29,27 @@ function PriceCard({ item }) {
       }}
     >
       <div>
+        {/* Foto/logo produk */}
+        <div className="mb-3 text-center">
+          <img
+            src={imageSrc}
+            alt={item.name}
+            loading="lazy"
+            style={{
+              width: 100,
+              height: 100,
+              objectFit: "cover",
+              borderRadius: 20,
+              border: "1px solid #E5E9F0",
+              background: "#F8FAFF",
+              boxShadow: "0 2px 6px rgba(0,0,0,0.08)",
+            }}
+          />
+        </div>
+
         {/* Nama produk */}
-        <h5 className="fw-semibold mb-2" style={{ fontSize: "1.25rem" }}>
-          {item.icon} {item.name}
+        <h5 className="fw-semibold mb-2" style={{ fontSize: "1.15rem" }}>
+          {item.name}
         </h5>
 
         {/* Stok hanya untuk kategori premium */}
@@ -54,7 +79,7 @@ function PriceCard({ item }) {
         <hr className="my-2" />
         {hasDetail ? (
           <Link
-            to={`/products/${item.id}`}        // ✅ route detail
+            to={`/products/${item.id}`}
             className="btn btn-outline-primary w-100"
             aria-label={`Lihat detail ${item.name}`}
           >

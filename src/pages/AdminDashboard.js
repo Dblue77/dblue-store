@@ -14,6 +14,7 @@ import {
 import logoDefault from "../assets/logo.png";
 import AdminNavbar from "../components/AdminNavbar";
 
+
 export default function AdminDashboard() {
   const [items, setItems] = useState([]);
   const [newItem, setNewItem] = useState({
@@ -21,32 +22,19 @@ export default function AdminDashboard() {
     category: "sosmed",
     priceText: "",
     stock: 0,
+    tncText: "",
+    photoUrl: "", // preview setelah upload
   });
+  const [prodFile, setProdFile] = useState(null); // file foto produk (tambah)
   const [loading, setLoading] = useState(true);
   const [visits, setVisits] = useState([]);
   const [search, setSearch] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("all");
   const navigate = useNavigate();
 
-  // Testimoni (CRUD)
-  const [testimonials, setTestimonials] = useState([]);
-  const [tLoading, setTLoading] = useState(true);
-  const [tSearch, setTSearch] = useState("");
-  const [tForm, setTForm] = useState({
-    id: null,
-    name: "",
-    message: "",
-    product_id: "",
-    photo_url: "",
-    photo_path: "",
-  });
-  const [tFile, setTFile] = useState(null);
-  const [tSaving, setTSaving] = useState(false);
-
   useEffect(() => {
     fetchAll();
     fetchVisits();
-    fetchTestimonials();
 
     const pricelistSub = supabase
       .channel("public:pricelist")
@@ -57,22 +45,49 @@ export default function AdminDashboard() {
       )
       .subscribe();
 
-    const testiSub = supabase
-      .channel("public:testimonials")
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "testimonials" },
-        () => fetchTestimonials()
-      )
-      .subscribe();
-
     return () => {
       supabase.removeChannel(pricelistSub);
-      supabase.removeChannel(testiSub);
     };
   }, []);
 
-  // Produk functions
+  // ===== Helpers: Upload foto produk ke bucket "products" =====
+  async function uploadProductImage(file) {
+    if (!file) return { url: "", path: "", error: null };
+    const ext = (file.name?.split(".").pop() || "bin").toLowerCase();
+    const filename = `photos/${Date.now()}-${Math.random()
+      .toString(36)
+      .slice(2)}.${ext}`;
+
+    if (file.size > 5 * 1024 * 1024) {
+      return { error: new Error("Ukuran file > 5MB, kecilkan dulu.") };
+    }
+
+    const { data, error } = await supabase.storage
+      .from("products") // ← samakan dengan nama bucket persis
+      .upload(filename, file, {
+        cacheControl: "3600",
+        upsert: true, // butuh UPDATE policy; sudah kita buat di atas
+        contentType: file.type || "application/octet-stream",
+      });
+
+    if (error) {
+      console.error("Storage upload error:", error); // ← penting: lihat message-nya
+      return { error };
+    }
+
+    const { data: pub } = supabase.storage
+      .from("products")
+      .getPublicUrl(data.path);
+
+    return { url: pub.publicUrl, path: data.path, error: null };
+  }
+
+  async function removeProductImage(path) {
+    if (!path) return;
+    await supabase.storage.from("products").remove([path]);
+  }
+
+  // ===== Produk functions =====
   const fetchAll = async () => {
     setLoading(true);
     const { data, error } = await supabase
@@ -99,6 +114,12 @@ export default function AdminDashboard() {
     const stockVal =
       newItem.category === "premium" ? parseInt(newItem.stock) || 0 : null;
 
+    let uploaded;
+    if (prodFile) {
+      uploaded = await uploadProductImage(prodFile);
+      if (uploaded?.error) return alert(uploaded.error.message);
+    }
+
     const payload = {
       name: newItem.name,
       category: newItem.category,
@@ -106,11 +127,23 @@ export default function AdminDashboard() {
       logo: logoDefault,
       stock: stockVal,
       sold_out: newItem.category === "premium" ? stockVal <= 0 : false,
+      tnc: newItem.tncText || null,
+      photo_url: uploaded?.url || null,
+      photo_path: uploaded?.path || null,
     };
 
     const { error } = await supabase.from("pricelist").insert([payload]);
     if (error) return alert(error.message);
-    setNewItem({ name: "", category: "sosmed", priceText: "", stock: 0 });
+
+    setNewItem({
+      name: "",
+      category: "sosmed",
+      priceText: "",
+      stock: 0,
+      tncText: "",
+      photoUrl: "",
+    });
+    setProdFile(null);
     fetchAll();
   };
 
@@ -125,6 +158,15 @@ export default function AdminDashboard() {
       Array.isArray(item.price) ? item.price.join(", ") : item.price
     );
     if (priceText === null) return;
+
+    const tncDefault = item.tnc ?? "";
+    const tncPrompt = prompt(
+      "S&K (multiline, kosongkan jika tidak):",
+      tncDefault
+    );
+    if (tncPrompt === null) return;
+    const tncText = tncPrompt;
+
     let stock = item.stock;
     if (category === "premium") {
       const stokPrompt = prompt("Stok:", item.stock || 0);
@@ -140,7 +182,14 @@ export default function AdminDashboard() {
 
     const { error } = await supabase
       .from("pricelist")
-      .update({ name, category, price: priceArr, stock, sold_out: soldOut })
+      .update({
+        name,
+        category,
+        price: priceArr,
+        stock,
+        sold_out: soldOut,
+        tnc: tncText || null,
+      })
       .eq("id", id);
     if (!error) fetchAll();
   };
@@ -156,6 +205,13 @@ export default function AdminDashboard() {
 
   const deleteItem = async (id) => {
     if (!window.confirm("Yakin ingin menghapus produk ini?")) return;
+
+    // hapus foto dari storage jika ada
+    const item = items.find((i) => i.id === id);
+    if (item?.photo_path) {
+      await removeProductImage(item.photo_path);
+    }
+
     const { error } = await supabase.from("pricelist").delete().eq("id", id);
     if (!error) fetchAll();
   };
@@ -171,148 +227,6 @@ export default function AdminDashboard() {
     const matchSearch = it.name.toLowerCase().includes(search.toLowerCase());
     return matchCategory && matchSearch;
   });
-
-    // Testimoni functions
-  async function fetchTestimonials() {
-    setTLoading(true);
-    const { data, error } = await supabase
-      .from("testimonials")
-      .select("*")
-      .order("created_at", { ascending: false });
-    if (!error) setTestimonials(data || []);
-    setTLoading(false);
-  }
-
-  function resetTForm() {
-    setTForm({
-      id: null,
-      name: "",
-      message: "",
-      product_id: "",
-      photo_url: "",
-      photo_path: "",
-    });
-    setTFile(null);
-  }
-
-  async function uploadToBucket(file) {
-    if (!file) return { url: "", path: "", error: null };
-    const ext = (file.name?.split(".").pop() || "bin").toLowerCase();
-    const filename = `photos/${Date.now()}-${Math.random()
-      .toString(36)
-      .slice(2)}.${ext}`;
-
-    if (file.size > 5 * 1024 * 1024) {
-      return { error: new Error("Ukuran file > 5MB, kecilkan dulu.") };
-    }
-
-    const { data, error } = await supabase.storage
-      .from("testimonials")
-      .upload(filename, file, {
-        cacheControl: "3600",
-        upsert: true,
-        contentType: file.type || undefined,
-      });
-
-    if (error) {
-      console.error("Upload Storage error:", error);
-      return { error };
-    }
-
-    const { data: pub } = supabase.storage
-      .from("testimonials")
-      .getPublicUrl(data.path);
-    return { url: pub.publicUrl, path: data.path, error: null };
-  }
-
-  async function removeFromBucket(path) {
-    if (!path) return;
-    const { error } = await supabase.storage
-      .from("testimonials")
-      .remove([path]);
-    if (error) console.error("Remove file error:", error);
-  }
-
-  async function saveTestimonial(e) {
-    e.preventDefault();
-    if (!tForm.name.trim() || !tForm.message.trim()) {
-      return alert("Nama dan pesan wajib diisi.");
-    }
-
-    setTSaving(true);
-    try {
-      let uploaded;
-      if (tFile) {
-        uploaded = await uploadToBucket(tFile);
-        if (uploaded?.error) throw uploaded.error;
-      }
-
-      const payload = {
-        name: tForm.name,
-        message: tForm.message,
-        product_id: tForm.product_id ? Number(tForm.product_id) : null,
-        ...(uploaded?.url && {
-          photo_url: uploaded.url,
-          photo_path: uploaded.path,
-        }),
-      };
-
-      if (tForm.id) {
-        if (
-          uploaded?.path &&
-          tForm.photo_path &&
-          tForm.photo_path !== uploaded.path
-        ) {
-          await removeFromBucket(tForm.photo_path);
-        }
-        const { error } = await supabase
-          .from("testimonials")
-          .update(payload)
-          .eq("id", tForm.id);
-        if (error) throw error;
-      } else {
-        const { error } = await supabase.from("testimonials").insert(payload);
-        if (error) throw error;
-      }
-
-      await fetchTestimonials();
-      resetTForm();
-    } catch (err) {
-      console.error("Save Testimonial error:", err);
-      alert(err?.message || "Gagal menyimpan testimoni.");
-    } finally {
-      setTSaving(false);
-    }
-  }
-
-  function handleEditTestimonial(item) {
-    setTForm({
-      id: item.id,
-      name: item.name || "",
-      message: item.message || "",
-      product_id: item.product_id || "",
-      photo_url: item.photo_url || "",
-      photo_path: item.photo_path || "",
-    });
-    setTFile(null);
-    window.scrollTo({ top: 0, behavior: "smooth" });
-  }
-
-  async function handleDeleteTestimonial(item) {
-    if (!window.confirm("Hapus testimoni ini?")) return;
-    const { error } = await supabase
-      .from("testimonials")
-      .delete()
-      .eq("id", item.id);
-    if (!error) {
-      if (item.photo_path) await removeFromBucket(item.photo_path);
-      setTestimonials((prev) => prev.filter((x) => x.id !== item.id));
-    }
-  }
-
-  const filteredTestimonials = testimonials.filter((t) =>
-    (t.name + " " + t.message).toLowerCase().includes(tSearch.toLowerCase())
-  );
 
   return (
     <>
@@ -387,6 +301,52 @@ export default function AdminDashboard() {
                   />
                 </div>
               )}
+
+              {/* Upload Foto Produk */}
+              <div className="col-md-4">
+                <input
+                  type="file"
+                  className="form-control"
+                  accept="image/*"
+                  onChange={(e) => {
+                    const f = e.target.files?.[0] || null;
+                    setProdFile(f);
+                    if (f) {
+                      const url = URL.createObjectURL(f);
+                      setNewItem((prev) => ({ ...prev, photoUrl: url }));
+                    } else {
+                      setNewItem((prev) => ({ ...prev, photoUrl: "" }));
+                    }
+                  }}
+                />
+                {newItem.photoUrl ? (
+                  <div className="mt-2">
+                    <img
+                      src={newItem.photoUrl}
+                      alt="Preview"
+                      style={{ height: 56, borderRadius: 8 }}
+                    />
+                  </div>
+                ) : null}
+              </div>
+
+              {/* S&K */}
+              <div className="col-12">
+                <textarea
+                  className="form-control"
+                  rows={4}
+                  placeholder="Syarat & Ketentuan (opsional) — satu poin per baris"
+                  value={newItem.tncText}
+                  onChange={(e) =>
+                    setNewItem({ ...newItem, tncText: e.target.value })
+                  }
+                />
+                <small className="text-muted">
+                  Tip: pisahkan tiap poin dengan baris baru. Teks akan tampil
+                  sebagai daftar.
+                </small>
+              </div>
+
               <div className="col-md-2">
                 <button className="btn btn-primary w-100" onClick={addItem}>
                   Tambah
@@ -436,7 +396,7 @@ export default function AdminDashboard() {
                   <div className="card shadow-sm p-3 h-100">
                     <div className="d-flex align-items-center mb-2">
                       <img
-                        src={it.logo || logoDefault}
+                        src={it.photo_url || it.logo || logoDefault}
                         alt={it.name}
                         style={{
                           width: 40,
@@ -456,6 +416,7 @@ export default function AdminDashboard() {
                         )}
                       </div>
                     </div>
+
                     <ul className="small mb-2">
                       {Array.isArray(it.price) ? (
                         it.price.map((p, i) => <li key={i}>🔹 {p}</li>)
@@ -463,6 +424,7 @@ export default function AdminDashboard() {
                         <li>🔹 {it.price}</li>
                       )}
                     </ul>
+
                     <div className="d-flex flex-wrap gap-2 mt-auto">
                       <button
                         className="btn btn-sm btn-warning flex-grow-1"
@@ -470,6 +432,36 @@ export default function AdminDashboard() {
                       >
                         Edit Produk
                       </button>
+
+                      {/* Ganti Foto cepat */}
+                      <label className="btn btn-sm btn-info flex-grow-1 mb-0">
+                        Ganti Foto
+                        <input
+                          type="file"
+                          accept="image/*"
+                          style={{ display: "none" }}
+                          onChange={async (e) => {
+                            const file = e.target.files?.[0];
+                            if (!file) return;
+                            const up = await uploadProductImage(file);
+                            if (up?.error) return alert(up.error.message);
+                            // hapus foto lama jika ada
+                            if (it.photo_path && it.photo_path !== up.path) {
+                              await removeProductImage(it.photo_path);
+                            }
+                            const { error } = await supabase
+                              .from("pricelist")
+                              .update({
+                                photo_url: up.url,
+                                photo_path: up.path,
+                              })
+                              .eq("id", it.id);
+                            if (error) alert(error.message);
+                            fetchAll();
+                          }}
+                        />
+                      </label>
+
                       <button
                         className={`btn btn-sm ${
                           it.sold_out ? "btn-secondary" : "btn-danger"
@@ -492,141 +484,6 @@ export default function AdminDashboard() {
           )}
         </div>
 
-        {/* === CRUD TESTIMONI === */}
-        <div className="card shadow-sm mb-4">
-          <div className="card-body">
-            <h5 className="fw-semibold mb-3">Kelola Testimoni</h5>
-
-            {/* Form */}
-            <form onSubmit={saveTestimonial}>
-              <div className="row g-2">
-                <div className="col-md-3">
-                  <input
-                    className="form-control"
-                    placeholder="Nama pelanggan"
-                    value={tForm.name}
-                    onChange={(e) =>
-                      setTForm({ ...tForm, name: e.target.value })
-                    }
-                    required
-                  />
-                </div>
-                <div className="col-md-4">
-                  <input
-                    className="form-control"
-                    placeholder="Pesan / testimoni"
-                    value={tForm.message}
-                    onChange={(e) =>
-                      setTForm({ ...tForm, message: e.target.value })
-                    }
-                    required
-                  />
-                </div>
-                <div className="col-md-2">
-                  <input
-                    type="number"
-                    className="form-control"
-                    placeholder="ID Produk (opsional)"
-                    value={tForm.product_id}
-                    onChange={(e) =>
-                      setTForm({ ...tForm, product_id: e.target.value })
-                    }
-                  />
-                </div>
-                <div className="col-md-3">
-                  <input
-                    type="file"
-                    className="form-control"
-                    accept="image/*,.pdf,.doc,.docx"
-                    onChange={(e) => setTFile(e.target.files?.[0] || null)}
-                  />
-                </div>
-                <div className="col-12 d-flex gap-2">
-                  <button
-                    type="submit"
-                    className="btn btn-primary"
-                    disabled={tSaving}
-                  >
-                    {tForm.id ? "Update" : "Simpan"}
-                  </button>
-                  {tForm.id && (
-                    <button
-                      type="button"
-                      className="btn btn-outline-secondary"
-                      onClick={resetTForm}
-                    >
-                      Reset
-                    </button>
-                  )}
-                </div>
-              </div>
-            </form>
-
-            {/* Search */}
-            <div className="d-flex justify-content-between align-items-center mt-4 mb-2">
-              <h6 className="mb-0">Daftar Testimoni</h6>
-              <input
-                className="form-control"
-                style={{ width: 240 }}
-                placeholder="Cari nama/pesan..."
-                value={tSearch}
-                onChange={(e) => setTSearch(e.target.value)}
-              />
-            </div>
-
-            {/* List */}
-            {tLoading ? (
-              <div>Loading...</div>
-            ) : filteredTestimonials.length === 0 ? (
-              <div className="text-muted">Belum ada testimoni.</div>
-            ) : (
-              <div className="row g-3">
-                {filteredTestimonials.map((t) => (
-                  <div className="col-md-6 col-lg-4" key={t.id}>
-                    <div className="card h-100 shadow-sm">
-                      {t.photo_url && (
-                        <img
-                          src={t.photo_url}
-                          alt={t.name}
-                          className="card-img-top"
-                          style={{ objectFit: "cover", height: 720 }}
-                          loading="lazy"
-                        />
-                      )}
-                      <div className="card-body d-flex flex-column">
-                        <div className="d-flex justify-content-between align-items-start">
-                          <div>
-                            <h6 className="mb-1">{t.name}</h6>
-                            <small className="text-muted">
-                              {new Date(t.created_at).toLocaleDateString()}
-                              {t.product_id ? ` • Produk #${t.product_id}` : ""}
-                            </small>
-                          </div>
-                        </div>
-                        <p className="small mt-2 mb-3">{t.message}</p>
-                        <div className="mt-auto d-flex gap-2">
-                          <button
-                            className="btn btn-sm btn-warning"
-                            onClick={() => handleEditTestimonial(t)}
-                          >
-                            Edit
-                          </button>
-                          <button
-                            className="btn btn-sm btn-dark"
-                            onClick={() => handleDeleteTestimonial(t)}
-                          >
-                            Hapus
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
-
         {/* Traffic Chart */}
         <div className="card shadow-sm">
           <div className="card-body">
@@ -645,7 +502,12 @@ export default function AdminDashboard() {
                     dataKey="count"
                     stroke="#007bff"
                     strokeWidth={2}
-                    dot={{ r: 4, fill: "#007bff", stroke: "#fff", strokeWidth: 1 }}
+                    dot={{
+                      r: 4,
+                      fill: "#007bff",
+                      stroke: "#fff",
+                      strokeWidth: 1,
+                    }}
                     activeDot={{ r: 6 }}
                   />
                   <Area

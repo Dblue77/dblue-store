@@ -74,7 +74,7 @@ function Header({ search, setSearch }) {
 
         {/* Sub tagline */}
         <p className="text-center text-muted mb-3 mb-md-4">
-          💳 Payment via <strong>All E-Wallet</strong> / <strong>QRIS</strong>
+          Payment via <strong>All E-Wallet</strong> / <strong>QRIS</strong>
         </p>
 
         {/* Search */}

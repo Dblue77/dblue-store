@@ -1,30 +1,30 @@
 body {
   margin: 0;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
-    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", "Oxygen",
+    "Ubuntu", "Cantarell", "Fira Sans", "Droid Sans", "Helvetica Neue",
     sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
 code {
-  font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
+  font-family: source-code-pro, Menlo, Monaco, Consolas, "Courier New",
     monospace;
 }
 
 /* Frame foto 9:16 yang konsisten dan responsif */
 .poster-9x16 {
-  aspect-ratio: 9 / 16;   /* kunci ukuran mirip poster */
+  aspect-ratio: 9 / 16; /* kunci ukuran mirip poster */
   width: 100%;
   border-radius: 12px;
   overflow: hidden;
-  background: #000;       /* back-up color saat loading */
+  background: #000; /* back-up color saat loading */
 }
 
 .poster-9x16__img {
   width: 100%;
   height: 100%;
-  object-fit: cover;      /* isi penuh, crop rapi */
+  object-fit: cover; /* isi penuh, crop rapi */
   object-position: center;
   display: block;
 }
@@ -41,4 +41,32 @@ code {
 /* Sedikit pemanis pada kartu */
 .card {
   border-radius: 14px;
+}
+
+/* ====== STYLE FOTO PRODUK ====== */
+
+/* Foto di daftar produk (grid card) */
+.product-card img {
+  width: 100%;
+  height: 220px;              /* tinggi fix, biar semua sejajar */
+  object-fit: cover;          /* isi penuh tanpa distorsi */
+  border-radius: 12px;        /* biar smooth di pojok */
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.product-card img:hover {
+  transform: scale(1.03);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.15);
+}
+
+/* Foto di halaman detail produk */
+.product-detail-img {
+  width: 100%;
+  max-width: 720px;           /* biar fix di tengah kiri */
+  aspect-ratio: 16 / 9;       /* ukuran proporsional 16:9 */
+  object-fit: cover;          /* isi penuh, tidak ketarik */
+  border-radius: 14px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.12);
+  display: block;
+  margin: 0 auto;
 }

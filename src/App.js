@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from "react";
-import { Routes, Route, Navigate } from "react-router-dom";
+import React, { useEffect } from "react";
+import { useLocation, Routes, Route, Navigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import "bootstrap/dist/css/bootstrap.min.css";
 
@@ -11,27 +11,51 @@ import PriceCard from "./components/PriceCard";
 import Footer from "./components/Footer";
 import { supabase } from "./supabaseClient";
 
-// Halaman publik tambahan
-import Testimonials from "./pages/Testimonials";       // ✅ list testimoni publik
+// Halaman publik
+import Testimonials from "./pages/Testimonials";
 import OrderGuide from "./pages/OrderGuide";
-import ProductDetail from "./pages/ProductDetail";     // ✅ detail produk + testimoni terkait
+import ProductDetail from "./pages/ProductDetail";
 
 // Halaman admin
-import AdminTestimonials from "./pages/AdminTestimonials"; // ✅ CRUD testimoni (admin)
+import AdminTestimonials from "./pages/AdminTestimonials";
 import AdminLogin from "./pages/AdminLogin";
 import AdminDashboard from "./pages/AdminDashboard";
 import ProtectedRoute from "./components/ProtectedRoute";
 import EditProductPage from "./pages/EditProductPage";
 
-// ============================
-// ✅ Halaman Publik (Pricelist)
-// ============================
-function PublicPricelist() {
-  const [category, setCategory] = useState("premium");
-  const [search, setSearch] = useState("");
-  const [data, setData] = useState([]);
+// ===========================================
+// 🧠 Komponen auto-title global
+// ===========================================
+function TitleManager() {
+  const { pathname } = useLocation();
 
   useEffect(() => {
+    let title = "Dblue Store";
+
+    if (pathname === "/") title = "Dblue Store – Toko Digital Murah";
+    else if (pathname.startsWith("/products")) title = "Detail Produk · Dblue Store";
+    else if (pathname.startsWith("/testimonials")) title = "Testimoni Pelanggan · Dblue Store";
+    else if (pathname.startsWith("/order-guide")) title = "Cara Pemesanan · Dblue Store";
+    else if (pathname.startsWith("/admin/login")) title = "Login Admin · Dblue Store";
+    else if (pathname.startsWith("/admin/testimonials")) title = "Kelola Testimoni · Dblue Store";
+    else if (pathname.startsWith("/admin")) title = "Admin Panel · Dblue Store";
+    else if (pathname.startsWith("/edit")) title = "Edit Produk · Dblue Store";
+
+    document.title = title;
+  }, [pathname]);
+
+  return <title>Dblue Store</title>; // Fallback title declarative
+}
+
+// ===========================================
+// 🏠 Halaman Publik
+// ===========================================
+function PublicPricelist() {
+  const [category, setCategory] = React.useState("premium");
+  const [search, setSearch] = React.useState("");
+  const [data, setData] = React.useState([]);
+
+  React.useEffect(() => {
     fetchData();
     logVisit();
   }, []);
@@ -52,7 +76,6 @@ function PublicPricelist() {
           path: window.location.pathname,
           referrer: document.referrer || null,
           user_agent: navigator.userAgent,
-          ip: null,
         },
       ]);
     } catch (err) {
@@ -92,62 +115,48 @@ function PublicPricelist() {
   );
 }
 
-// ============================
-// ✅ Routing Utama Aplikasi
-// ============================
+// ===========================================
+// 🚦 Routing Utama
+// ===========================================
 function App() {
   return (
-    <Routes>
-      {/* 🏠 Halaman Publik */}
-      <Route path="/" element={<PublicPricelist />} />
-
-      {/* ⭐ Testimoni Publik */}
-      <Route path="/testimonials" element={<Testimonials />} />
-
-      {/* 🧾 Cara Pemesanan */}
-      <Route path="/order-guide" element={<OrderGuide />} />
-
-      {/* 🛒 Detail Produk (dengan testimoni terkait) */}
-      <Route path="/products/:id" element={<ProductDetail />} />  {/* ✅ NEW */}
-
-      {/* 🧑‍💻 Admin Testimoni (CRUD) */}
-      <Route
-        path="/admin-testimonials"
-        element={
-          <ProtectedRoute>
-            <AdminTestimonials />
-          </ProtectedRoute>
-        }
-      />
-      {/* alias opsional: /admin/testimonials → sama ke AdminTestimonials */}
-      <Route
-        path="/admin/testimonials"
-        element={
-          <ProtectedRoute>
-            <AdminTestimonials />
-          </ProtectedRoute>
-        }
-      />
-
-      {/* 🔑 Login Admin */}
-      <Route path="/admin/login" element={<AdminLogin />} />
-
-      {/* 📊 Dashboard Admin */}
-      <Route
-        path="/admin"
-        element={
-          <ProtectedRoute>
-            <AdminDashboard />
-          </ProtectedRoute>
-        }
-      />
-
-      {/* ✏️ Halaman Edit Produk */}
-      <Route path="/edit/:id" element={<EditProductPage />} />
-
-      {/* 🚫 Redirect jika path tidak dikenal */}
-      <Route path="*" element={<Navigate to="/" replace />} />
-    </Routes>
+    <>
+      <TitleManager /> {/* ⬅️ auto title global */}
+      <link rel="icon" type="image/png" href="../src/assets/logo.png" />
+      <Routes>
+        <Route path="/" element={<PublicPricelist />} />
+        <Route path="/testimonials" element={<Testimonials />} />
+        <Route path="/order-guide" element={<OrderGuide />} />
+        <Route path="/products/:id" element={<ProductDetail />} />
+        <Route
+          path="/admin-testimonials"
+          element={
+            <ProtectedRoute>
+              <AdminTestimonials />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/testimonials"
+          element={
+            <ProtectedRoute>
+              <AdminTestimonials />
+            </ProtectedRoute>
+          }
+        />
+        <Route path="/admin/login" element={<AdminLogin />} />
+        <Route
+          path="/admin"
+          element={
+            <ProtectedRoute>
+              <AdminDashboard />
+            </ProtectedRoute>
+          }
+        />
+        <Route path="/edit/:id" element={<EditProductPage />} />
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    </>
   );
 }
 
