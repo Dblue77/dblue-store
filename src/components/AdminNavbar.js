@@ -12,10 +12,10 @@ export default function AdminNavbar({ onSignOut }) {
         {/* Brand */}
         <Link className="navbar-brand d-flex align-items-center gap-2" to="/" onClick={close}>
           <img src={logo} alt="Dblue Store" width="36" height="36" className="rounded-circle" />
-          <span className="fw-bold text-primary">Admin • Dblue Store</span>
+          <span className="fw-bold text-primary">Admin - Dblue Store</span>
         </Link>
 
-        {/* Toggler (React-controlled, no Bootstrap JS needed) */}
+        {/* Toggler */}
         <button
           className="navbar-toggler"
           type="button"
@@ -41,6 +41,11 @@ export default function AdminNavbar({ onSignOut }) {
               </Link>
             </li>
             <li className="nav-item">
+              <Link className="nav-link px-3" to="/admin/finance" onClick={close}>
+                Pemasukan & Pengeluaran
+              </Link>
+            </li>
+            <li className="nav-item">
               <Link className="nav-link px-3" to="/" onClick={close}>
                 Lihat Situs
               </Link>
@@ -50,14 +55,13 @@ export default function AdminNavbar({ onSignOut }) {
                 className="btn btn-sm btn-danger px-3"
                 onClick={() => { close(); onSignOut?.(); }}
               >
-                Sign out
+                Logout
               </button>
             </li>
           </ul>
         </div>
       </div>
 
-      {/* Style kecil */}
       <style>{`
         .navbar.sticky-top { z-index: 1050; }
         .navbar .nav-link { color: #495057; }

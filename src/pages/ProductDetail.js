@@ -212,10 +212,10 @@ export default function ProductDetail() {
                   alt={product.name}
                   loading="lazy"
                   style={{
-                    width: 180, // ukuran fix (bisa ubah jadi 128/256)
+                    width: 180, 
                     height: 180,
                     objectFit: "cover",
-                    borderRadius: 24, // sedikit rounded biar lembut
+                    borderRadius: 24, 
                     border: "1px solid #EEF2F7",
                     background: "#F6FAFF",
                     display: "inline-block",
@@ -311,15 +311,15 @@ export default function ProductDetail() {
               )}
             </div>
 
-            {/* Info kecil */}
             <div className="mt-3 small text-muted">
-              * Respon cepat pada jam kerja. Harga dapat berubah sewaktu-waktu.
+              * Respon cepat pada jam kerja. Waktu proses tergantung jenis
+              layanan.
             </div>
           </aside>
         </div>
       </div>
 
-      {/* S&K PALING BAWAH */}
+      {/* S&K */}
       {renderTnC()}
     </div>
   );

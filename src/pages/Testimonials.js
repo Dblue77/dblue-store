@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { supabase } from "../supabaseClient";
 import NavbarComp from "../components/Navbar";
-import Footer from "../components/Footer"; // ✅ tambah footer
+import Footer from "../components/Footer"; 
 
 export default function Testimonials() {
   const [list, setList] = useState([]);
@@ -28,7 +28,7 @@ export default function Testimonials() {
 
   return (
     <div style={{ background: "linear-gradient(180deg, #e7f4ff, #fff)" }}>
-      {/* === Navbar === */}
+      {/* Navbar */}
       <NavbarComp />
 
       <div className="container py-4">
@@ -71,7 +71,7 @@ export default function Testimonials() {
                       className="card-img-top"
                       style={{
                         width: "100%",
-                        height: "750px", // ✅ fix height poster
+                        height: "750px", 
                         objectFit: "cover",
                         borderBottom: "4px solid #0dcaf0",
                         backgroundColor: "#000",
@@ -102,7 +102,7 @@ export default function Testimonials() {
         )}
       </div>
 
-      {/* === Footer === */}
+      {/* FOOTER */}
       <Footer />
     </div>
   );

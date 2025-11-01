@@ -15,6 +15,7 @@ import { supabase } from "./supabaseClient";
 import Testimonials from "./pages/Testimonials";
 import OrderGuide from "./pages/OrderGuide";
 import ProductDetail from "./pages/ProductDetail";
+import Reseller from "./pages/Reseller";
 
 // Halaman admin
 import AdminTestimonials from "./pages/AdminTestimonials";
@@ -22,10 +23,8 @@ import AdminLogin from "./pages/AdminLogin";
 import AdminDashboard from "./pages/AdminDashboard";
 import ProtectedRoute from "./components/ProtectedRoute";
 import EditProductPage from "./pages/EditProductPage";
+import AdminFinance from "./pages/AdminFinance";
 
-// ===========================================
-// 🧠 Komponen auto-title global
-// ===========================================
 function TitleManager() {
   const { pathname } = useLocation();
 
@@ -33,23 +32,25 @@ function TitleManager() {
     let title = "Dblue Store";
 
     if (pathname === "/") title = "Dblue Store – Toko Digital Murah";
-    else if (pathname.startsWith("/products")) title = "Detail Produk · Dblue Store";
-    else if (pathname.startsWith("/testimonials")) title = "Testimoni Pelanggan · Dblue Store";
-    else if (pathname.startsWith("/order-guide")) title = "Cara Pemesanan · Dblue Store";
-    else if (pathname.startsWith("/admin/login")) title = "Login Admin · Dblue Store";
-    else if (pathname.startsWith("/admin/testimonials")) title = "Kelola Testimoni · Dblue Store";
+    else if (pathname.startsWith("/products"))
+      title = "Detail Produk · Dblue Store";
+    else if (pathname.startsWith("/testimonials"))
+      title = "Testimoni Pelanggan · Dblue Store";
+    else if (pathname.startsWith("/order-guide"))
+      title = "Cara Pemesanan · Dblue Store";
+    else if (pathname.startsWith("/admin/login"))
+      title = "Login Admin · Dblue Store";
+    else if (pathname.startsWith("/admin/testimonials"))
+      title = "Kelola Testimoni · Dblue Store";
     else if (pathname.startsWith("/admin")) title = "Admin Panel · Dblue Store";
     else if (pathname.startsWith("/edit")) title = "Edit Produk · Dblue Store";
 
     document.title = title;
   }, [pathname]);
 
-  return <title>Dblue Store</title>; // Fallback title declarative
+  return <title>Dblue Store</title>;
 }
 
-// ===========================================
-// 🏠 Halaman Publik
-// ===========================================
 function PublicPricelist() {
   const [category, setCategory] = React.useState("premium");
   const [search, setSearch] = React.useState("");
@@ -115,19 +116,17 @@ function PublicPricelist() {
   );
 }
 
-// ===========================================
-// 🚦 Routing Utama
-// ===========================================
 function App() {
   return (
     <>
-      <TitleManager /> {/* ⬅️ auto title global */}
+      <TitleManager /> {/* auto title global */}
       <link rel="icon" type="image/png" href="../src/assets/logo.png" />
       <Routes>
         <Route path="/" element={<PublicPricelist />} />
         <Route path="/testimonials" element={<Testimonials />} />
         <Route path="/order-guide" element={<OrderGuide />} />
         <Route path="/products/:id" element={<ProductDetail />} />
+        <Route path="/reseller" element={<Reseller />} />
         <Route
           path="/admin-testimonials"
           element={
@@ -141,6 +140,14 @@ function App() {
           element={
             <ProtectedRoute>
               <AdminTestimonials />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/finance"
+          element={
+            <ProtectedRoute>
+              <AdminFinance />
             </ProtectedRoute>
           }
         />

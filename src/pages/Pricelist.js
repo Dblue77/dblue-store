@@ -13,7 +13,6 @@ function Pricelist() {
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  // Fetch data dari Supabase
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true);
@@ -33,7 +32,6 @@ function Pricelist() {
     fetchData();
   }, [category]);
 
-  // Filter berdasarkan pencarian
   const filteredData = data.filter((item) =>
     item.name.toLowerCase().includes(search.toLowerCase())
   );
@@ -47,7 +45,7 @@ function Pricelist() {
         <CategoryBar category={category} setCategory={setCategory} />
 
         {loading ? (
-          <div className="text-center py-5">⏳ Memuat data...</div>
+          <div className="text-center py-5"> Memuat data...</div>
         ) : filteredData.length === 0 ? (
           <div className="text-center py-5 text-secondary">Tidak ada data</div>
         ) : (

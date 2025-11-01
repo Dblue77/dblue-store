@@ -35,9 +35,6 @@ export default function AdminLogin() {
           </button>
         </div>
       </form>
-      <p className="text-muted mt-3 small">
-        Note: admin user must be added to <code>admins</code> table via Supabase SQL editor.
-      </p>
     </div>
   );
 }

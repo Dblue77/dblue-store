@@ -67,6 +67,18 @@ function Navbar() {
               </NavLink>
             </li>
 
+            <li className="nav-item">
+              <NavLink
+                to="/reseller"
+                className={({ isActive }) =>
+                  "nav-link px-3" + (isActive ? " active fw-semibold text-primary" : "")
+                }
+                onClick={closeCollapse}
+              >
+                Reseller
+              </NavLink>
+            </li>
+
             {/* <li className="nav-item">
               <NavLink
                 to="/order-guide"

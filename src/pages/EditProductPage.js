@@ -31,7 +31,7 @@ export default function EditProductPage() {
     category: "",
     priceText: "",
     logo: "",
-    tncText: "", // ⬅️ S&K
+    tncText: "", 
   });
   const [categoryCustom, setCategoryCustom] = useState("");
 
@@ -49,7 +49,7 @@ export default function EditProductPage() {
             category: p.category ?? "",
             priceText: arrayToTextarea(p.price),
             logo: p.logo ?? "",
-            tncText: (p.tnc ?? ""), // ⬅️ realtime update S&K
+            tncText: (p.tnc ?? ""),
           });
         }
       )
@@ -67,7 +67,7 @@ export default function EditProductPage() {
 
       const prodPromise = supabase
         .from("pricelist")
-        .select("id,name,category,price,logo,tnc") // ⬅️ ambil tnc
+        .select("id,name,category,price,logo,tnc") 
         .eq("id", rowId)
         .maybeSingle();
 
@@ -97,7 +97,7 @@ export default function EditProductPage() {
           category: p.category ?? "",
           priceText: arrayToTextarea(p.price),
           logo: p.logo ?? "",
-          tncText: p.tnc ?? "", // ⬅️ set ke form
+          tncText: p.tnc ?? "",
         });
         if (p.category && !catList.includes(p.category)) {
           setCategoryCustom(p.category);
@@ -155,7 +155,7 @@ export default function EditProductPage() {
       category: finalCategory || null,
       price: textareaToArray(form.priceText),
       logo: form.logo?.trim() || null,
-      tnc: form.tncText?.trim() || null, // ⬅️ simpan S&K
+      tnc: form.tncText?.trim() || null,
     };
 
     const { error } = await supabase.from("pricelist").update(payload).eq("id", rowId);
@@ -171,7 +171,7 @@ export default function EditProductPage() {
   return (
     <div className="min-vh-100 d-flex align-items-center justify-content-center bg-light">
       <div className="card shadow-lg p-4 w-100" style={{ maxWidth: 640 }}>
-        <h4 className="fw-semibold mb-3 text-center">✏️ Edit Produk</h4>
+        <h4 className="fw-semibold mb-3 text-center">Edit Produk</h4>
 
         {errorMsg ? <div className="alert alert-danger">{errorMsg}</div> : null}
 
@@ -198,13 +198,11 @@ export default function EditProductPage() {
                 onChange={onCategorySelect}
                 className="form-select"
               >
-                <option value="">— Pilih Kategori —</option>
                 {categoryOptions.map((opt) => (
                   <option key={opt} value={opt}>
                     {opt}
                   </option>
                 ))}
-                <option value={CUSTOM_SENTINEL}>Lainnya…</option>
               </select>
 
               {categorySelectValue === CUSTOM_SENTINEL && (
@@ -230,7 +228,7 @@ export default function EditProductPage() {
               />
             </div>
 
-            {/* ⬇️ S&K Produk */}
+            {/* S&K Produk */}
             <div className="mb-3">
               <label className="form-label">Syarat & Ketentuan (S&K)</label>
               <textarea
@@ -239,11 +237,7 @@ export default function EditProductPage() {
                 onChange={handleField}
                 className="form-control"
                 rows={6}
-                placeholder={`Contoh S&K:\nCHAT GPT+ MEMBER 1 BULAN\n\naccept invitation di email!\n\nsyarat & ketentuan\n— ss login untuk memastikan akun baik-baik saja\n— dilarang mengubah billing pembayaran\n— dilarang mengubah email & password\n— 25 - 30 hari = 1 bulan\n\nJANGAN INVITE SIAPAPUN KE WORKPLACE, NANTI SUBSCRIPTIONNYA ILANG\n\nnote:\n• patuhi snk untuk garansi, melanggar = denda 500k & garansi hangus\n• kebijakan aplikasi dapat berubah sewaktu waktu`}
               />
-              <small className="text-muted">
-                Tulis multiline. Tiap baris akan tampil sebagai poin (di halaman produk).
-              </small>
             </div>
 
             <div className="d-flex justify-content-between">

@@ -68,7 +68,7 @@ export default function AdminTestimonials() {
       .from("testimonials")
       .upload(filename, f, {
         cacheControl: "3600",
-        upsert: true, // hindari 409
+        upsert: true,
         contentType: f.type || undefined,
       });
     if (error) return { error };
@@ -104,7 +104,6 @@ export default function AdminTestimonials() {
       };
 
       if (form.id) {
-        // jika ganti file, hapus file lama
         if (uploaded?.path && form.photo_path && form.photo_path !== uploaded.path) {
           await removeFromBucket(form.photo_path);
         }
@@ -134,7 +133,6 @@ export default function AdminTestimonials() {
     }
   }
 
-  // dipakai navbar
   const handleSignOut = async () => {
     await supabase.auth.signOut();
     navigate("/");

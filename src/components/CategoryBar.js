@@ -3,7 +3,7 @@ import { motion } from "framer-motion";
 
 const categories = [
   { key: "premium", label: "APP Premium" },
-  { key: "sosmed", label: "Sosial Media" },
+  { key: "sosmed", label: "Suntik All Sosial Media" },
   { key: "pulsa", label: "Pulsa" },
   { key: "ewallet", label: "E-Wallet" },
 ];

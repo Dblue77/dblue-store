@@ -2,7 +2,6 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Helmet } from "react-helmet";
 
 function Header({ search, setSearch }) {
-  // ===== Content & typing effect =====
   const fullText = "DBLUE STORE — OFFICIAL PRICE LIST";
   const [displayedText, setDisplayedText] = useState("");
   const [i, setI] = useState(0);
@@ -10,7 +9,7 @@ function Header({ search, setSearch }) {
     () => window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches,
     []
   );
-  const typingSpeed = 55; // ms per char
+  const typingSpeed = 55;
   const cursorRef = useRef(null);
 
   useEffect(() => {
@@ -26,12 +25,11 @@ function Header({ search, setSearch }) {
     return () => clearTimeout(t);
   }, [i, fullText, prefersReduced]);
 
-  // ===== Handlers =====
   const onChange = (e) => setSearch?.(e.target.value);
 
   return (
     <header className="py-4 py-md-5 bg-gradient position-relative overflow-hidden">
-      {/* ===== Helmet (SEO) ===== */}
+      {/* SEO */}
       <Helmet>
         <title>Dblue Store - Official Price List</title>
         <meta
@@ -43,14 +41,12 @@ function Header({ search, setSearch }) {
           content="Dblue Store, app premium, suntik sosmed, top up e-wallet, pulsa, QRIS, e-wallet, harga followers, harga like"
         />
         <meta name="author" content="Dblue Store" />
-        {/* Open Graph */}
         <meta property="og:title" content="Dblue Store - Official Price List" />
         <meta
           property="og:description"
           content="Top up termurah & terpercaya. Payment via All E-Wallet / QRIS."
         />
         <meta property="og:type" content="website" />
-        {/* Twitter Card */}
         <meta name="twitter:card" content="summary" />
         <meta name="twitter:title" content="Dblue Store - Official Price List" />
         <meta
@@ -81,7 +77,6 @@ function Header({ search, setSearch }) {
         <div className="d-flex justify-content-center">
           <div className="search-wrap shadow-sm">
             <span className="search-icon" aria-hidden="true">
-              {/* magnifier icon (SVG) */}
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
                 <path
                   d="M21 21l-4.35-4.35M10.5 18a7.5 7.5 0 1 1 0-15 7.5 7.5 0 0 1 0 15Z"

@@ -23,9 +23,9 @@ export default function AdminDashboard() {
     priceText: "",
     stock: 0,
     tncText: "",
-    photoUrl: "", // preview setelah upload
+    photoUrl: "", 
   });
-  const [prodFile, setProdFile] = useState(null); // file foto produk (tambah)
+  const [prodFile, setProdFile] = useState(null); 
   const [loading, setLoading] = useState(true);
   const [visits, setVisits] = useState([]);
   const [search, setSearch] = useState("");
@@ -50,7 +50,6 @@ export default function AdminDashboard() {
     };
   }, []);
 
-  // ===== Helpers: Upload foto produk ke bucket "products" =====
   async function uploadProductImage(file) {
     if (!file) return { url: "", path: "", error: null };
     const ext = (file.name?.split(".").pop() || "bin").toLowerCase();
@@ -63,15 +62,15 @@ export default function AdminDashboard() {
     }
 
     const { data, error } = await supabase.storage
-      .from("products") // ← samakan dengan nama bucket persis
+      .from("products") 
       .upload(filename, file, {
         cacheControl: "3600",
-        upsert: true, // butuh UPDATE policy; sudah kita buat di atas
+        upsert: true, 
         contentType: file.type || "application/octet-stream",
       });
 
     if (error) {
-      console.error("Storage upload error:", error); // ← penting: lihat message-nya
+      console.error("Storage upload error:", error); 
       return { error };
     }
 
@@ -87,7 +86,6 @@ export default function AdminDashboard() {
     await supabase.storage.from("products").remove([path]);
   }
 
-  // ===== Produk functions =====
   const fetchAll = async () => {
     setLoading(true);
     const { data, error } = await supabase
@@ -206,7 +204,6 @@ export default function AdminDashboard() {
   const deleteItem = async (id) => {
     if (!window.confirm("Yakin ingin menghapus produk ini?")) return;
 
-    // hapus foto dari storage jika ada
     const item = items.find((i) => i.id === id);
     if (item?.photo_path) {
       await removeProductImage(item.photo_path);
@@ -230,7 +227,7 @@ export default function AdminDashboard() {
 
   return (
     <>
-      {/* === Navbar Admin (dari components) === */}
+      {/* Navbar Admin  */}
       <AdminNavbar onSignOut={handleSignOut} />
 
       {/* === Konten === */}
@@ -241,9 +238,6 @@ export default function AdminDashboard() {
           <div className="d-flex gap-2">
             <button className="btn btn-outline-primary" onClick={fetchAll}>
               Refresh
-            </button>
-            <button className="btn btn-danger" onClick={handleSignOut}>
-              Sign out
             </button>
           </div>
         </div>
@@ -335,16 +329,12 @@ export default function AdminDashboard() {
                 <textarea
                   className="form-control"
                   rows={4}
-                  placeholder="Syarat & Ketentuan (opsional) — satu poin per baris"
+                  placeholder="Syarat & Ketentuan"
                   value={newItem.tncText}
                   onChange={(e) =>
                     setNewItem({ ...newItem, tncText: e.target.value })
                   }
                 />
-                <small className="text-muted">
-                  Tip: pisahkan tiap poin dengan baris baru. Teks akan tampil
-                  sebagai daftar.
-                </small>
               </div>
 
               <div className="col-md-2">
