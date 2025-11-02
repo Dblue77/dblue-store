@@ -1,9 +1,11 @@
 import { useState, useEffect, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
+import { Toaster, toast } from "sonner";
 import { supabase } from "../supabaseClient";
 
 const DEFAULT_CATEGORY_OPTIONS = ["sosmed", "premium", "pulsa", "ewallet"];
 const CUSTOM_SENTINEL = "__custom__";
+
 const textareaToArray = (s) =>
   (s || "")
     .split(/\r?\n/)
@@ -23,51 +25,63 @@ export default function EditProductPage() {
 
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [errorMsg, setErrorMsg] = useState("");
 
-  const [categoryOptions, setCategoryOptions] = useState(DEFAULT_CATEGORY_OPTIONS);
+  const [categoryOptions, setCategoryOptions] = useState(
+    DEFAULT_CATEGORY_OPTIONS
+  );
   const [form, setForm] = useState({
     name: "",
     category: "",
     priceText: "",
     logo: "",
-    tncText: "", 
+    tncText: "",
+    // stok khusus premium
+    stock: 0,
   });
   const [categoryCustom, setCategoryCustom] = useState("");
 
+  // Realtime update
   useEffect(() => {
     if (!rowId) return;
     const ch = supabase
       .channel("realtime-pricelist-" + rowId)
       .on(
         "postgres_changes",
-        { event: "UPDATE", schema: "public", table: "pricelist", filter: `id=eq.${rowId}` },
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "pricelist",
+          filter: `id=eq.${rowId}`,
+        },
         (payload) => {
           const p = payload?.new ?? {};
-          setForm({
+          setForm((prev) => ({
+            ...prev,
             name: p.name ?? "",
             category: p.category ?? "",
             priceText: arrayToTextarea(p.price),
             logo: p.logo ?? "",
-            tncText: (p.tnc ?? ""),
-          });
+            tncText: p.tnc ?? "",
+            stock: Number(p.stock ?? 0),
+          }));
+          toast.info("Produk diupdate (realtime) ✨");
         }
       )
       .subscribe();
     return () => supabase.removeChannel(ch);
   }, [rowId]);
 
+  // Initial load
   useEffect(() => {
     let alive = true;
 
     async function load() {
       if (!rowId) return;
       setLoading(true);
-      setErrorMsg("");
 
       const prodPromise = supabase
         .from("pricelist")
-        .select("id,name,category,price,logo,tnc") 
+        .select("id,name,category,price,logo,tnc,stock")
         .eq("id", rowId)
         .maybeSingle();
 
@@ -76,8 +90,13 @@ export default function EditProductPage() {
         .select("name")
         .order("name", { ascending: true })
         .then((res) => {
-          if (res.error || !Array.isArray(res.data)) throw res.error || new Error("no categories");
-          const names = res.data.map((c) => (typeof c.name === "string" ? c.name.trim() : "")).filter(Boolean);
+          if (res.error || !Array.isArray(res.data))
+            throw res.error || new Error("no categories");
+          const names = res.data
+            .map((c) =>
+              typeof c.name === "string" ? c.name.trim() : ""
+            )
+            .filter(Boolean);
           return names.length ? names : DEFAULT_CATEGORY_OPTIONS;
         })
         .catch(() => DEFAULT_CATEGORY_OPTIONS);
@@ -89,7 +108,7 @@ export default function EditProductPage() {
       setCategoryOptions(catList);
 
       if (prodRes.error) {
-        setErrorMsg(prodRes.error.message || "Gagal memuat produk.");
+        toast.error(`Gagal memuat produk: ${prodRes.error.message}`);
       } else if (prodRes.data) {
         const p = prodRes.data;
         setForm({
@@ -98,12 +117,13 @@ export default function EditProductPage() {
           priceText: arrayToTextarea(p.price),
           logo: p.logo ?? "",
           tncText: p.tnc ?? "",
+          stock: Number(p.stock ?? 0),
         });
         if (p.category && !catList.includes(p.category)) {
           setCategoryCustom(p.category);
         }
       } else {
-        setErrorMsg("Produk tidak ditemukan.");
+        toast.error("Produk tidak ditemukan.");
       }
 
       setLoading(false);
@@ -117,13 +137,20 @@ export default function EditProductPage() {
 
   const handleField = (e) => {
     const { name, value } = e.target;
-    setForm((prev) => ({ ...prev, [name]: value }));
+    if (name === "stock") {
+      const n = Math.max(0, Number(value ?? 0));
+      setForm((prev) => ({ ...prev, stock: n }));
+    } else {
+      setForm((prev) => ({ ...prev, [name]: value }));
+    }
   };
 
-  const categorySelectValue =
-    form.category
-      ? (categoryOptions.includes(form.category) ? form.category : CUSTOM_SENTINEL)
-      : "";
+  // Nilai select kategori (support custom)
+  const categorySelectValue = form.category
+    ? categoryOptions.includes(form.category)
+      ? form.category
+      : CUSTOM_SENTINEL
+    : "";
 
   const onCategorySelect = (e) => {
     const val = e.target.value;
@@ -136,49 +163,69 @@ export default function EditProductPage() {
   };
 
   const handleSave = async () => {
+    // Validasi dasar
+    const nameTrim = form.name.trim();
+    if (!nameTrim) {
+      toast.error("Nama produk wajib diisi.");
+      return;
+    }
+
     setSaving(true);
-    setErrorMsg("");
 
     const finalCategory =
       categorySelectValue === CUSTOM_SENTINEL
         ? (categoryCustom || "").trim()
         : form.category;
 
-    if (!form.name.trim()) {
-      setErrorMsg("Nama produk wajib diisi.");
-      setSaving(false);
-      return;
-    }
+    const isPremium = (finalCategory || "").toLowerCase() === "premium";
 
-    const payload = {
-      name: form.name.trim(),
+    // payload dasar
+    const payloadBase = {
+      name: nameTrim,
       category: finalCategory || null,
       price: textareaToArray(form.priceText),
       logo: form.logo?.trim() || null,
       tnc: form.tncText?.trim() || null,
     };
 
-    const { error } = await supabase.from("pricelist").update(payload).eq("id", rowId);
+    // untuk kategori premium: kirim stok + sold_out auto
+    const payload = isPremium
+      ? {
+          ...payloadBase,
+          stock: Number.isFinite(Number(form.stock)) ? Number(form.stock) : 0,
+          sold_out: Number(form.stock) === 0, // auto → 0 stok = sold out
+        }
+      : payloadBase;
+
+    const { error } = await supabase
+      .from("pricelist")
+      .update(payload)
+      .eq("id", rowId);
 
     setSaving(false);
+
     if (error) {
-      setErrorMsg(error.message || "Gagal menyimpan perubahan.");
+      toast.error(`Save failed: ${error.message}`);
       return;
     }
-    navigate("/admin");
+    toast.success("Changes saved successfully! ✅");
+    // kecilkan jeda biar toast sempat muncul
+    setTimeout(() => navigate("/admin"), 300);
   };
 
   return (
     <div className="min-vh-100 d-flex align-items-center justify-content-center bg-light">
+      {/* Sonner toaster */}
+      <Toaster richColors position="top-right" />
+
       <div className="card shadow-lg p-4 w-100" style={{ maxWidth: 640 }}>
         <h4 className="fw-semibold mb-3 text-center">Edit Produk</h4>
 
-        {errorMsg ? <div className="alert alert-danger">{errorMsg}</div> : null}
-
         {loading ? (
-          <p className="text-center">Loading...</p>
+          <p className="text-center m-0">Loading...</p>
         ) : (
           <>
+            {/* Nama Produk */}
             <div className="mb-3">
               <label className="form-label">Nama Produk</label>
               <input
@@ -187,10 +234,11 @@ export default function EditProductPage() {
                 value={form.name}
                 onChange={handleField}
                 className="form-control"
-                placeholder="Contoh: Instagram Followers"
+                placeholder="Contoh: Netflix 1U"
               />
             </div>
 
+            {/* Kategori */}
             <div className="mb-3">
               <label className="form-label">Kategori</label>
               <select
@@ -203,6 +251,13 @@ export default function EditProductPage() {
                     {opt}
                   </option>
                 ))}
+                {!categoryOptions.includes(form.category) && form.category && (
+                  <option value={CUSTOM_SENTINEL}>Custom: {form.category}</option>
+                )}
+                {/* Opsional: izinkan buat kategori custom baru */}
+                {categorySelectValue === "" && (
+                  <option value="">-- pilih kategori --</option>
+                )}
               </select>
 
               {categorySelectValue === CUSTOM_SENTINEL && (
@@ -216,6 +271,23 @@ export default function EditProductPage() {
               )}
             </div>
 
+            {/* Stok: hanya untuk kategori premium */}
+            {(form.category || "").toLowerCase() === "premium" && (
+              <div className="mb-3">
+                <label className="form-label">Stok Produk</label>
+                <input
+                  type="number"
+                  min={0}
+                  name="stock"
+                  value={form.stock}
+                  onChange={handleField}
+                  className="form-control"
+                  placeholder="0"
+                />
+              </div>
+            )}
+
+            {/* Daftar Harga */}
             <div className="mb-3">
               <label className="form-label">Daftar Harga</label>
               <textarea
@@ -224,11 +296,11 @@ export default function EditProductPage() {
                 onChange={handleField}
                 className="form-control"
                 rows={6}
-                placeholder={`Contoh:\n100 Followers : 5k\n200 Followers : 10k\n300 Followers : 14k`}
+                placeholder={`Contoh:\n1 Bulan : 25k\n2 Bulan : 45k`}
               />
             </div>
 
-            {/* S&K Produk */}
+            {/* S&K */}
             <div className="mb-3">
               <label className="form-label">Syarat & Ketentuan (S&K)</label>
               <textarea
@@ -240,12 +312,21 @@ export default function EditProductPage() {
               />
             </div>
 
+            {/* Aksi */}
             <div className="d-flex justify-content-between">
-              <button className="btn btn-secondary" onClick={() => navigate("/admin")} disabled={saving}>
-                Batal
+              <button
+                className="btn btn-secondary"
+                onClick={() => navigate("/admin")}
+                disabled={saving}
+              >
+                Cancel
               </button>
-              <button className="btn btn-primary" onClick={handleSave} disabled={saving}>
-                {saving ? "Menyimpan..." : "Simpan"}
+              <button
+                className="btn btn-primary"
+                onClick={handleSave}
+                disabled={saving}
+              >
+                {saving ? "Saving..." : "Save"}
               </button>
             </div>
           </>

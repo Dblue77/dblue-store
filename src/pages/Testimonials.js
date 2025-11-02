@@ -34,7 +34,7 @@ export default function Testimonials() {
       <div className="container py-4">
         {/* Header & Search */}
         <div className="d-flex flex-wrap justify-content-between align-items-center mb-3">
-          <h4 className="fw-semibold mb-2 text-dark">Testimoni</h4>
+          <h2 className="fw-bold mb-2 text-dark">Testimoni</h2>
           <input
             className="form-control shadow-sm"
             style={{ width: 260, maxWidth: "100%" }}

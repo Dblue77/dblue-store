@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Helmet } from "react-helmet";
 
 function Header({ search, setSearch }) {
-  const fullText = "DBLUE STORE — OFFICIAL PRICE LIST";
+  const fullText = "DBLUE STORE OFFICIAL";
   const [displayedText, setDisplayedText] = useState("");
   const [i, setI] = useState(0);
   const prefersReduced = useMemo(
@@ -64,7 +64,6 @@ function Header({ search, setSearch }) {
             className={`title-cursor ${i >= fullText.length || prefersReduced ? "invisible" : ""}`}
             aria-hidden="true"
           >
-            |
           </span>
         </h1>
 

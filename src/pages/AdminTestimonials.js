@@ -147,7 +147,7 @@ export default function AdminTestimonials() {
       <AdminNavbar onSignOut={handleSignOut} />
 
       <div className="container py-4">
-        <h4 className="mb-3">Admin — Testimoni</h4>
+        <h2 className="fw-bold mb-3">Admin — Testimoni</h2>
 
         {/* Form */}
         <form onSubmit={save} className="card shadow-sm mb-4">

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import { supabase } from "../supabaseClient";
 import { useNavigate } from "react-router-dom";
 import {
@@ -14,7 +14,6 @@ import {
 import logoDefault from "../assets/logo.png";
 import AdminNavbar from "../components/AdminNavbar";
 
-
 export default function AdminDashboard() {
   const [items, setItems] = useState([]);
   const [newItem, setNewItem] = useState({
@@ -23,9 +22,9 @@ export default function AdminDashboard() {
     priceText: "",
     stock: 0,
     tncText: "",
-    photoUrl: "", 
+    photoUrl: "",
   });
-  const [prodFile, setProdFile] = useState(null); 
+  const [prodFile, setProdFile] = useState(null);
   const [loading, setLoading] = useState(true);
   const [visits, setVisits] = useState([]);
   const [search, setSearch] = useState("");
@@ -62,15 +61,15 @@ export default function AdminDashboard() {
     }
 
     const { data, error } = await supabase.storage
-      .from("products") 
+      .from("products")
       .upload(filename, file, {
         cacheControl: "3600",
-        upsert: true, 
+        upsert: true,
         contentType: file.type || "application/octet-stream",
       });
 
     if (error) {
-      console.error("Storage upload error:", error); 
+      console.error("Storage upload error:", error);
       return { error };
     }
 
@@ -225,6 +224,16 @@ export default function AdminDashboard() {
     return matchCategory && matchSearch;
   });
 
+  const counts = useMemo(() => {
+    return {
+      premium: items.filter((i) => i.category === "premium").length,
+      sosmed: items.filter((i) => i.category === "sosmed").length,
+      ewallet: items.filter((i) => i.category === "ewallet").length,
+      pulsa: items.filter((i) => i.category === "pulsa").length,
+      total: items.length,
+    };
+  }, [items]);
+
   return (
     <>
       {/* Navbar Admin  */}
@@ -233,12 +242,48 @@ export default function AdminDashboard() {
       {/* === Konten === */}
       <div className="container py-4">
         {/* Header */}
-        <div className="d-flex flex-wrap justify-content-between align-items-center mb-4">
-          <h3 className="fw-bold">Admin Dashboard</h3>
+        <div className="d-flex flex-wrap justify-content-between align-items-center mb-2">
+          <h2 className="fw-bold mb-3">Admin Dashboard</h2>
           <div className="d-flex gap-2">
             <button className="btn btn-outline-primary" onClick={fetchAll}>
               Refresh
             </button>
+          </div>
+        </div>
+
+        {/* Stat Cards: Jumlah Produk per Kategori */}
+        <div className="row g-3 mb-4">
+          <div className="col-md-3">
+            <div className="card shadow-sm h-100">
+              <div className="card-body">
+                <div className="text-muted">App Premium</div>
+                <div className="fs-3 fw-bold">{counts.premium}</div>
+              </div>
+            </div>
+          </div>
+          <div className="col-md-3">
+            <div className="card shadow-sm h-100">
+              <div className="card-body">
+                <div className="text-muted">Sosmed</div>
+                <div className="fs-3 fw-bold">{counts.sosmed}</div>
+              </div>
+            </div>
+          </div>
+          <div className="col-md-3">
+            <div className="card shadow-sm h-100">
+              <div className="card-body">
+                <div className="text-muted">E-Wallet</div>
+                <div className="fs-3 fw-bold">{counts.ewallet}</div>
+              </div>
+            </div>
+          </div>
+          <div className="col-md-3">
+            <div className="card shadow-sm h-100">
+              <div className="card-body">
+                <div className="text-muted">Pulsa</div>
+                <div className="fs-3 fw-bold">{counts.pulsa}</div>
+              </div>
+            </div>
           </div>
         </div>
 

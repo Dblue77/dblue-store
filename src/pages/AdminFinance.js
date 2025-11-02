@@ -1,18 +1,15 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { supabase } from "../supabaseClient";
 import NavbarComp from "../components/AdminNavbar";
-import Footer from "../components/Footer";
 import {
   ResponsiveContainer,
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
   CartesianGrid,
   Tooltip,
   Legend,
   BarChart,
   Bar,
+  XAxis,
+  YAxis,
 } from "recharts";
 
 // Helper format IDR
@@ -36,18 +33,19 @@ export default function AdminFinance() {
     total_expense: 0,
     profit: 0,
   });
-  const [daily, setDaily] = useState([]); // grafik
-  const [rows, setRows] = useState([]); // tabel transaksi
+  const [storeBalance, setStoreBalance] = useState(0);
+  const [pendingTopup, setPendingTopup] = useState(0);
+  const [daily, setDaily] = useState([]);
+  const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(false);
 
-  // Form tambah/edit
   const emptyForm = {
     id: null,
     tanggal: dateTo,
     jenis: "income",
+    income_category: "online",
     produk: "",
     nominal: "",
-    kategori_pengeluaran: "Modal",
     catatan: "",
   };
   const [form, setForm] = useState(emptyForm);
@@ -56,51 +54,49 @@ export default function AdminFinance() {
   const loadAll = async () => {
     setLoading(true);
 
-    // 1) Ambil transaksi dalam rentang tanggal
-    const { data: tx, error: errTx } = await supabase
+    // Saldo & pending
+    const [{ data: bal }, { data: pend }] = await Promise.all([
+      supabase.from("v_store_balance").select("balance").single(),
+      supabase.from("v_offline_pending_topup").select("pending_topup").single(),
+    ]);
+    if (bal) setStoreBalance(Number(bal.balance || 0));
+    if (pend) setPendingTopup(Number(pend.pending_topup || 0));
+
+    // Transaksi tanggal
+    const { data: tx } = await supabase
       .from("finance_transactions")
       .select("*")
       .gte("tanggal", dateFrom)
       .lte("tanggal", dateTo)
       .order("tanggal", { ascending: false });
+    setRows(tx || []);
 
-    if (!errTx) setRows(tx || []);
-
-    // 2) Ambil daily sums lalu filter range di client (view berisi semua hari)
-    const { data: dailySums, error: errDaily } = await supabase
+    const { data: dailySums } = await supabase
       .from("finance_daily_sums")
       .select("*");
-    if (!errDaily) {
-      const filtered = (dailySums || []).filter(
-        (d) => d.tanggal >= dateFrom && d.tanggal <= dateTo
-      );
-      setDaily(filtered);
-    }
+    const filtered = (dailySums || []).filter(
+      (d) => d.tanggal >= dateFrom && d.tanggal <= dateTo
+    );
+    setDaily(filtered);
 
-    // 3) Ambil totals lalu hitung ulang untuk range (biar akurat per filter)
-    //    (Bisa juga bikin view parametrisasi, tapi kita simpel di client)
-    if (!errTx) {
-      const income =
-        tx
-          ?.filter((r) => r.jenis === "income")
-          .reduce((a, b) => a + Number(b.nominal), 0) || 0;
-      const expense =
-        tx
-          ?.filter((r) => r.jenis === "expense")
-          .reduce((a, b) => a + Number(b.nominal), 0) || 0;
-      setTotals({
-        total_income: income,
-        total_expense: expense,
-        profit: income - expense,
-      });
-    }
+    // Totals
+    const income = (tx || [])
+      .filter((r) => r.jenis === "income")
+      .reduce((a, b) => a + Number(b.nominal), 0);
+    const expense = (tx || [])
+      .filter((r) => r.jenis === "expense")
+      .reduce((a, b) => a + Number(b.nominal), 0);
+    setTotals({
+      total_income: income,
+      total_expense: expense,
+      profit: income - expense,
+    });
 
     setLoading(false);
   };
 
   useEffect(() => {
     loadAll();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dateFrom, dateTo]);
 
   const resetForm = () => {
@@ -110,18 +106,23 @@ export default function AdminFinance() {
 
   const onSubmit = async (e) => {
     e?.preventDefault?.();
-    // Normalisasi fields sesuai jenis
+    const isIncome = form.jenis === "income";
+
     const payload = {
       tanggal: form.tanggal,
-      jenis: form.jenis, // 'income' | 'expense'
+      jenis: form.jenis,
       nominal: Number(form.nominal || 0),
-      produk: form.jenis === "income" ? form.produk || "-" : null,
-      kategori_pengeluaran: form.jenis === "expense" ? "Modal" : null,
+      produk: isIncome ? form.produk || "-" : null,
       catatan: form.catatan || null,
+      income_category: isIncome ? form.income_category : null,
     };
 
     if (!payload.tanggal || !payload.jenis || payload.nominal <= 0) {
       alert("Tanggal, jenis, dan nominal wajib diisi (nominal > 0).");
+      return;
+    }
+    if (isIncome && !payload.income_category) {
+      alert("Kategori pemasukan wajib diisi (Online/Offline).");
       return;
     }
 
@@ -138,7 +139,7 @@ export default function AdminFinance() {
       if (error) return alert(error.message);
     }
     resetForm();
-    loadAll();
+    await loadAll();
   };
 
   const onEdit = (row) => {
@@ -147,10 +148,10 @@ export default function AdminFinance() {
       id: row.id,
       tanggal: row.tanggal,
       jenis: row.jenis,
+      income_category: row.income_category || "online",
       produk: row.produk || "",
-      kategori_pengeluaran: row.kategori_pengeluaran || "Modal",
-      catatan: row.catatan || "",
       nominal: row.nominal,
+      catatan: row.catatan || "",
     });
   };
 
@@ -161,7 +162,59 @@ export default function AdminFinance() {
       .delete()
       .eq("id", id);
     if (error) return alert(error.message);
-    loadAll();
+    await loadAll();
+  };
+
+  const onTopUpRow = async (row) => {
+    if (row.jenis !== "income" || row.income_category !== "offline") return;
+    const remaining = Number(row.nominal) - Number(row.topped_up_amount || 0);
+    if (remaining <= 0) return;
+
+    if (!window.confirm(`Top up penuh ${fIDR(remaining)} ke Saldo Toko?`))
+      return;
+
+    const { error } = await supabase
+      .from("finance_transactions")
+      .update({
+        topped_up_amount: Number(row.topped_up_amount || 0) + remaining,
+      })
+      .eq("id", row.id);
+    if (error) return alert(error.message);
+    await loadAll();
+  };
+
+  // TOP UP semua pending
+  const onTopUpAll = async () => {
+    if (pendingTopup <= 0) return;
+    if (!window.confirm(`Top up ${fIDR(pendingTopup)} ke Saldo Toko?`)) return;
+
+    const { data: pendings, error } = await supabase
+      .from("finance_transactions")
+      .select("id, nominal, topped_up_amount")
+      .eq("jenis", "income")
+      .eq("income_category", "offline");
+    if (error) return alert(error.message);
+
+    const updates = (pendings || [])
+      .map((r) => ({
+        id: r.id,
+        remaining: Number(r.nominal) - Number(r.topped_up_amount || 0),
+      }))
+      .filter((x) => x.remaining > 0);
+
+    for (const u of updates) {
+      const { error: e2 } = await supabase
+        .from("finance_transactions")
+        .update({ topped_up_amount: supabase.rpc ? undefined : undefined })
+        .update({
+          topped_up_amount:
+            Number(pendings.find((p) => p.id === u.id)?.topped_up_amount || 0) +
+            u.remaining,
+        })
+        .eq("id", u.id);
+      if (e2) return alert(e2.message);
+    }
+    await loadAll();
   };
 
   const chartData = useMemo(() => {
@@ -176,7 +229,56 @@ export default function AdminFinance() {
     <div style={{ background: "linear-gradient(180deg, #e7f4ff, #fff)" }}>
       <NavbarComp />
       <div className="container py-4">
-        <h2 className="fw-bold mb-3">Finance Dashboard</h2>
+        <h2 className="fw-bold mb-3">Pemasukan & Pengeluaran Dashboard</h2>
+
+        {/* Cards ringkasan */}
+        <div className="row g-3 mb-3">
+          <div className="col-md-3">
+            <div className="card shadow-sm h-100">
+              <div className="card-body">
+                <div className="text-muted">Saldo Toko</div>
+                <div className="fs-3 fw-bold">{fIDR(storeBalance)}</div>
+              </div>
+            </div>
+          </div>
+          <div className="col-md-3">
+            <div className="card shadow-sm h-100">
+              <div className="card-body">
+                <div className="text-muted">Perlu Top-Up</div>
+                <div className="fs-3 fw-bold">{fIDR(pendingTopup)}</div>
+                <button
+                  className="btn btn-sm btn-primary mt-2"
+                  disabled={pendingTopup <= 0 || loading}
+                  onClick={onTopUpAll}
+                >
+                  Top Up
+                </button>
+              </div>
+            </div>
+          </div>
+          <div className="col-md-3">
+            <div className="card shadow-sm h-100">
+              <div className="card-body">
+                <div className="text-muted">Pemasukan</div>
+                <div className="fs-3 fw-bold">{fIDR(totals.total_income)}</div>
+              </div>
+            </div>
+          </div>
+          <div className="col-md-3">
+            <div className="card shadow-sm h-100">
+              <div className="card-body">
+                <div className="text-muted">Profit</div>
+                <div
+                  className={`fs-3 fw-bold ${
+                    totals.profit >= 0 ? "text-success" : "text-danger"
+                  }`}
+                >
+                  {fIDR(totals.profit)}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
 
         {/* Filter Tanggal */}
         <div className="card shadow-sm mb-3">
@@ -217,40 +319,6 @@ export default function AdminFinance() {
                 ) : (
                   <span className="text-success">Siap</span>
                 )}
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Cards ringkasan */}
-        <div className="row g-3 mb-3">
-          <div className="col-md-4">
-            <div className="card shadow-sm h-100">
-              <div className="card-body">
-                <div className="text-muted">Pemasukan</div>
-                <div className="fs-3 fw-bold">{fIDR(totals.total_income)}</div>
-              </div>
-            </div>
-          </div>
-          <div className="col-md-4">
-            <div className="card shadow-sm h-100">
-              <div className="card-body">
-                <div className="text-muted">Pengeluaran (Modal)</div>
-                <div className="fs-3 fw-bold">{fIDR(totals.total_expense)}</div>
-              </div>
-            </div>
-          </div>
-          <div className="col-md-4">
-            <div className="card shadow-sm h-100">
-              <div className="card-body">
-                <div className="text-muted">Profit</div>
-                <div
-                  className={`fs-3 fw-bold ${
-                    totals.profit >= 0 ? "text-success" : "text-danger"
-                  }`}
-                >
-                  {fIDR(totals.profit)}
-                </div>
               </div>
             </div>
           </div>
@@ -303,7 +371,25 @@ export default function AdminFinance() {
                   </select>
                 </div>
 
-                {form.jenis === "income" ? (
+                {/* Income only: kategori */}
+                {form.jenis === "income" && (
+                  <div className="col-md-2">
+                    <label className="form-label">Kategori</label>
+                    <select
+                      className="form-select"
+                      value={form.income_category}
+                      onChange={(e) =>
+                        setForm({ ...form, income_category: e.target.value })
+                      }
+                    >
+                      <option value="online">Online</option>
+                      <option value="offline">Offline</option>
+                    </select>
+                  </div>
+                )}
+
+                {/* Income only: produk */}
+                {form.jenis === "income" && (
                   <div className="col-md-4">
                     <label className="form-label">Nama Produk</label>
                     <input
@@ -317,21 +403,22 @@ export default function AdminFinance() {
                       required
                     />
                   </div>
-                ) : (
-                  <>
-                    <div className="col-md-4">
-                      <label className="form-label">Catatan</label>
-                      <input
-                        type="text"
-                        className="form-control"
-                        placeholder="cth: beli stok Apple Music"
-                        value={form.catatan}
-                        onChange={(e) =>
-                          setForm({ ...form, catatan: e.target.value })
-                        }
-                      />
-                    </div>
-                  </>
+                )}
+
+                {/* Expense: catatan */}
+                {form.jenis === "expense" && (
+                  <div className="col-md-6">
+                    <label className="form-label">Catatan</label>
+                    <input
+                      type="text"
+                      className="form-control"
+                      placeholder="cth: beli stok Apple Music"
+                      value={form.catatan}
+                      onChange={(e) =>
+                        setForm({ ...form, catatan: e.target.value })
+                      }
+                    />
+                  </div>
                 )}
 
                 <div className="col-md-2">
@@ -340,7 +427,9 @@ export default function AdminFinance() {
                     type="number"
                     className="form-control"
                     min="0"
-                    step="100"
+                    step="1"
+                    inputMode="numeric"
+                    pattern="\d*"
                     value={form.nominal}
                     onChange={(e) =>
                       setForm({ ...form, nominal: e.target.value })
@@ -381,79 +470,90 @@ export default function AdminFinance() {
                     <th>Tanggal</th>
                     <th>Jenis</th>
                     <th>Produk / Catatan</th>
+                    <th>Kategori</th>
                     <th className="text-end">Nominal</th>
+                    <th className="text-end">Sisa Top-Up</th>
                     <th></th>
                   </tr>
                 </thead>
                 <tbody>
-                  {rows.map((r) => (
-                    <tr key={r.id}>
-                      <td>{r.tanggal}</td>
-                      <td
-                        className={
-                          r.jenis === "income" ? "text-success" : "text-danger"
-                        }
-                      >
-                        {r.jenis === "income" ? "Pemasukan" : "Pengeluaran"}
-                      </td>
-                      <td>
-                        {r.jenis === "income"
-                          ? r.produk || "-"
-                          : r.catatan || "Modal"}
-                      </td>
-                      <td className="text-end">{fIDR(r.nominal)}</td>
-                      <td className="text-end">
-                        <div className="btn-group">
-                          <button
-                            className="btn btn-sm btn-outline-primary"
-                            onClick={() => onEdit(r)}
-                          >
-                            Edit
-                          </button>
-                          <button
-                            className="btn btn-sm btn-outline-danger"
-                            onClick={() => onDelete(r.id)}
-                          >
-                            Hapus
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
+                  {rows.map((r) => {
+                    const isOfflineIncome =
+                      r.jenis === "income" && r.income_category === "offline";
+                    const remaining = isOfflineIncome
+                      ? Number(r.nominal) - Number(r.topped_up_amount || 0)
+                      : 0;
+                    return (
+                      <tr key={r.id}>
+                        <td>{r.tanggal}</td>
+                        <td
+                          className={
+                            r.jenis === "income"
+                              ? "text-success"
+                              : "text-danger"
+                          }
+                        >
+                          {r.jenis === "income" ? "Pemasukan" : "Pengeluaran"}
+                        </td>
+                        <td>
+                          {r.jenis === "income"
+                            ? r.produk || "-"
+                            : r.catatan || "-"}
+                        </td>
+                        <td>
+                          {r.jenis === "income"
+                            ? r.income_category || "-"
+                            : "-"}
+                        </td>
+                        <td className="text-end">{fIDR(r.nominal)}</td>
+                        <td className="text-end">
+                          {isOfflineIncome ? fIDR(remaining) : "-"}
+                        </td>
+                        <td className="text-end">
+                          <div className="btn-group">
+                            <button
+                              className="btn btn-sm btn-outline-primary"
+                              onClick={() => onEdit(r)}
+                            >
+                              Edit
+                            </button>
+                            <button
+                              className="btn btn-sm btn-outline-danger"
+                              onClick={() => onDelete(r.id)}
+                            >
+                              Hapus
+                            </button>
+                            {isOfflineIncome && remaining > 0 && (
+                              <button
+                                className="btn btn-sm btn-success"
+                                onClick={() => onTopUpRow(r)}
+                              >
+                                Top Up
+                              </button>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
                   {rows.length === 0 && (
                     <tr>
-                      <td colSpan={5} className="text-center text-muted py-4">
+                      <td colSpan={7} className="text-center text-muted py-4">
                         Belum ada transaksi pada range tanggal ini.
                       </td>
                     </tr>
                   )}
                 </tbody>
-                <tfoot>
-                  <tr>
-                    <th colSpan={3} className="text-end">
-                      Total
-                    </th>
-                    <th className="text-end">
-                      {fIDR(
-                        totals.total_income -
-                          totals.total_expense +
-                          totals.total_expense
-                      )}
-                    </th>
-                    <th></th>
-                  </tr>
-                </tfoot>
               </table>
             </div>
           </div>
         </div>
       </div>
-      <Footer />
     </div>
   );
 }
 
-/** Komponen Chart gabungan (Line income + Bar expense) */
+/** Chart */
 function ComposedChart({ data }) {
   return (
     <ResponsiveContainer width="100%" height="100%">
