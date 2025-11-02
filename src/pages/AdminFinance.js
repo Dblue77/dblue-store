@@ -193,27 +193,27 @@ export default function AdminFinance() {
       .select("id, nominal, topped_up_amount")
       .eq("jenis", "income")
       .eq("income_category", "offline");
+
     if (error) return alert(error.message);
 
     const updates = (pendings || [])
       .map((r) => ({
         id: r.id,
-        remaining: Number(r.nominal) - Number(r.topped_up_amount || 0),
+        newTopped:
+          Number(r.topped_up_amount || 0) +
+          Math.max(0, Number(r.nominal) - Number(r.topped_up_amount || 0)),
       }))
-      .filter((x) => x.remaining > 0);
+      .filter((u) => u.newTopped > 0);
 
     for (const u of updates) {
       const { error: e2 } = await supabase
         .from("finance_transactions")
-        .update({ topped_up_amount: supabase.rpc ? undefined : undefined })
-        .update({
-          topped_up_amount:
-            Number(pendings.find((p) => p.id === u.id)?.topped_up_amount || 0) +
-            u.remaining,
-        })
+        .update({ topped_up_amount: u.newTopped })
         .eq("id", u.id);
+
       if (e2) return alert(e2.message);
     }
+
     await loadAll();
   };
 
